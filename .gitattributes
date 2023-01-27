@@ -11,3 +11,7 @@
 *.mdx linguist-generated=false
 *.mdx linguist-documentation=false
 *.mdx linguist-detectable=true
+*.js linguist-vendored=false
+*.js linguist-generated=false
+*.js linguist-documentation=false
+*.js linguist-detectable=true
