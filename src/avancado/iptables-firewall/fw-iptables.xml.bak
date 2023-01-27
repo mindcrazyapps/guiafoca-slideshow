@@ -1,0 +1,4205 @@
+<!-- Converted by db4-upgrade version 1.0 -->
+chapter <!---  [docbook](http://docbook.org/ns/docbook)" ---> version="5.0" fw-iptables">###Firewall iptables
+
+Este capítulo documenta o funcionamento do firewall <command>iptables
+que acompanha a série do kernel 2.4, opções usadas, e aponta alguns pontos
+fundamentais para iniciar a configuração e construção de bons sistemas de
+firewall.
+
+ fw-iptables-intro">###Introdução
+
+O **Firewall** é um programa que como objetivo proteger a
+máquina contra acessos indesejados, tráfego indesejado, proteger serviços que
+estejam rodando na máquina e bloquear a passagem de coisas que você não deseja
+receber (como conexões vindas da Internet para sua segura rede local, evitando
+acesso aos dados corporativos de uma empresa ou a seus dados pessoais).  No
+kernel do Linux 2.4, foi introduzido o firewall <command>iptables
+(também chamado de netfilter) que substitui o <command>ipchains dos
+kernels da série 2.2.  Este novo firewall tem como vantagem ser muito estável
+(assim como o <command>ipchains e <command>ipfwadm),
+confiável, permitir muita flexibilidade na programação de regras pelo
+administrador do sistema, mais opções disponíveis ao administrador para
+controle de tráfego, controle independente do tráfego da rede local/entre
+redes/interfaces devido a nova organização das etapas de roteamento de pacotes.
+
+
+O <command>iptables é um firewall em nível de pacotes e funciona
+baseado no endereço/porta de origem/destino do pacote, prioridade, etc.  Ele
+funciona através da comparação de regras para saber se um pacote tem ou não
+permissão para passar.  Em firewalls mais restritivos, o pacote é bloqueado e
+registrado para que o administrador do sistema tenha conhecimento sobre o que
+está acontecendo em seu sistema.
+
+
+Ele também pode ser usado para modificar e monitorar o tráfego da rede, fazer
+NAT (masquerading, source nat, destination nat), redirecionamento de pacotes,
+marcação de pacotes, modificar a prioridade de pacotes que chegam/saem do seu
+sistema, contagem de bytes, dividir tráfego entre máquinas, criar proteções
+anti-spoofing, contra syn flood, DoS, etc.  O tráfego vindo de máquinas
+desconhecidas da rede pode também ser bloqueado/registrado através do uso de
+simples regras.  As possibilidades oferecidas pelos recursos de filtragem
+<command>iptables como todas as ferramentas UNIX maduras dependem de
+sua imaginação, pois ele garante uma grande flexibilidade na manipulação das
+regras de acesso ao sistema, precisando apenas conhecer quais interfaces o
+sistema possui, o que deseja bloquear, o que tem acesso garantido, quais
+serviços devem estar acessíveis para cada rede, e iniciar a construção de seu
+firewall.
+
+
+O <command>iptables ainda tem a vantagem de ser modularizável,
+funções podem ser adicionadas ao firewall ampliando as possibilidades
+oferecidas.  Usei por 2 anos o <command>ipchains e afirmo que este é
+um firewall que tem possibilidades de gerenciar tanto a segurança em máquinas
+isoladas como roteamento em grandes organizações, onde a passagem de tráfego
+entre redes deve ser minuciosamente controlada.
+
+
+Um firewall não funciona de forma automática (instalando e esperar que ele faça
+as coisas por você), é necessário pelo menos conhecimentos básicos de rede
+tcp/ip, roteamento e portas para criar as regras que farão a segurança de seu
+sistema.  A segurança do sistema depende do controle das regras que serão
+criadas por você, as falhas humanas são garantia de mais de 95% de sucesso nas
+invasões.
+
+
+Enfim o <command>iptables é um firewall que agradará tanto a pessoas
+que desejam uma segurança básica em seu sistema, quando administradores de
+grandes redes que querem ter um controle minucioso sobre o tráfego que passam
+entre suas interfaces de rede (controlando tudo o que pode passar de uma rede a
+outra), controlar o uso de tráfego, monitoração, etc.
+
+ fw-iptables-versao">###Versão
+
+É assumido que esteja usando a versão 1.2.3 do <command>iptables e
+baseadas nas opções do kernel 2.4.16 (sem o uso de módulos experimentais).  As
+explicações contidas aqui podem funcionar para versões posteriores, mas é
+recomendável que leia a documentação sobre modificações no programa (changelog)
+em busca de mudanças que alterem o sentido das explicações fornecidas aqui.
+
+
+
+ fw-iptables-historia">###Um resumo da história do iptables
+
+O <command>iptables é um código de firewall das versões 2.4 do
+kernel, que substituiu o <command>ipchains (presente nas séries 2.2
+do kernel).  Ele foi incluído no kernel da série 2.4 em meados de Junho/Julho
+de 1999.
+
+
+A história do desenvolvimento (desde o porte do <command>ipfw do
+<command>BSD para o <command>Linux até o
+<command>iptables (que é a quarta geração de firewalls do kernel)
+está disponível no documento, <literal>Netfilter-howto.
+
+
+
+ fw-iptables-caracteristicas">###Características do firewall iptables
+<itemizedlist>
+<listitem>
+
+Especificação de portas/endereço de origem/destino
+
+
+<listitem>
+
+Suporte a protocolos TCP/UDP/ICMP (incluindo tipos de mensagens icmp)
+
+
+<listitem>
+
+Suporte a interfaces de origem/destino de pacotes
+
+
+<listitem>
+
+Manipula serviços de proxy na rede
+
+
+<listitem>
+
+Tratamento de tráfego dividido em chains (para melhor controle do tráfego que
+entra/sai da máquina e tráfego redirecionado.
+
+
+<listitem>
+
+Permite um número ilimitado de regras por chain
+
+
+<listitem>
+
+Muito rápido, estável e seguro
+
+
+<listitem>
+
+Possui mecanismos internos para rejeitar automaticamente pacotes duvidosos ou
+mal formados.
+
+
+<listitem>
+
+Suporte a módulos externos para expansão das funcionalidades padrões oferecidas
+pelo código de firewall
+
+
+<listitem>
+
+Suporte completo a roteamento de pacotes, tratadas em uma área diferente de
+tráfegos padrões.
+
+
+<listitem>
+
+Suporte a especificação de tipo de serviço para priorizar o tráfego de
+determinados tipos de pacotes.
+
+
+<listitem>
+
+Permite especificar exceções para as regras ou parte das regras
+
+
+<listitem>
+
+Suporte a detecção de fragmentos
+
+
+<listitem>
+
+Permite enviar alertas personalizados ao <command>syslog sobre o
+tráfego aceito/bloqueado.
+
+
+<listitem>
+
+Redirecionamento de portas
+
+
+<listitem>
+
+Masquerading
+
+
+<listitem>
+
+Suporte a SNAT (modificação do endereço de origem das máquinas para um único IP
+ou faixa de IP's).
+
+
+<listitem>
+
+Suporte a DNAT (modificação do endereço de destino das máquinas para um único
+IP ou fixa de IP's)
+
+
+<listitem>
+
+Contagem de pacotes que atravessaram uma interface/regra
+
+
+<listitem>
+
+Limitação de passagem de pacotes/conferência de regra (muito útil para criar
+proteções contra, syn flood, ping flood, DoS, etc).
+
+
+
+
+
+ fw-iptables-ficha">###Ficha técnica
+
+Pacote: <systemitem role="package">iptables</systemitem>
+
+<itemizedlist>
+<listitem>
+
+<literal>iptables - Sistema de controle principal para protocolos
+ipv4
+
+
+<listitem>
+
+<literal>ip6tables - Sistema de controle principal para protocolos
+ipv6
+
+
+<listitem>
+
+<literal>iptables-save - Salva as regras atuais em um arquivo
+especificado como argumento.  Este utilitário pode ser dispensado por um shell
+script contendo as regras executado na inicialização da máquina.
+
+
+<listitem>
+
+<literal>iptables-restore - Restaura regras salvas pelo utilitário
+<command>iptables-save.
+
+
+
+
+
+ fw-iptables-hwreq">###Requerimentos
+
+É necessário que o seu kernel tenha sido compilado com suporte ao
+<command>iptables (veja <xref linkend="fw-iptables-supkernel"/>.  O
+requerimento mínimo de memória necessária para a execução do
+<command>iptables é o mesmo do kernel 2.4 (4MB).  Dependendo do
+tráfego que será manipulado pela(s) interface(s) do firewall ele poderá ser
+executado com folga em uma máquina 386 SX com 4MB de RAM.
+
+
+Como as configurações residem no kernel não é necessário espaço extra em disco
+rígido para a execução deste utilitário.
+
+
+
+ fw-iptables-logs">###Arquivos de logs criados pelo iptables
+
+Todo tráfego que for registrado pelo <command>iptables é registrado
+por padrão no arquivo <filename>/var/log/kern.log</filename>.
+
+
+
+ fw-iptables-install">###Instalação
+
+<literal>apt-get install iptables
+
+
+O pacote <systemitem role="package">iptables</systemitem> contém o utilitário
+<command>iptables (e <command>ip6tables para redes ipv6)
+necessários para inserir suas regras no kernel.  Se você não sabe o que é ipv6,
+não precisará se preocupar com o utilitário <command>ip6tables por
+enquanto.
+
+
+
+ fw-iptables-contribuindo">###Enviando Correções/Contribuindo com o projeto
+
+A página principal do projeto é <literal>("http://www.w3.org/1999/xlink) [](http://netfilter.filewatcher.org">http://netfilter.filewatcher.org.
+Sugestões podem ser enviadas para a lista de desenvolvimento oficial do
+<command>iptables: <literal>("http://www.w3.org/1999/xlink) [](http://lists.samba.org">http://lists.samba.org.
+
+
+
+ fw-iptables-oldfw">###O que aconteceu com o <command>ipchains e <command>ipfwadm?
+
+O <command>iptables faz parte da nova geração de firewalls que
+acompanha o kernel 2.4, mas o suporte ao <command>ipchains e
+<command>ipfwadm ainda será mantido através de módulos de
+compatibilidade do kernel até 2004.  Seria uma grande falta de consideração
+retirar o suporte a estes firewalls do kernel como forma de obrigar a
+"aprenderem" o <command>iptables (mesmo o suporte sendo removido após
+este período, acredito que criarão patches "externos" para futuros kernels que
+não trarão mais este suporte).  Se precisa do suporte a estes firewalls antes
+de passar em definitivo para o <command>iptables leia <xref linkend="fw-iptables-supkernel"/>.
+
+
+Se você é um administrador que gosta de explorar todos os recursos de um
+firewall, usa todos os recursos que ele oferece ou mantém uma complexa rede
+corporativa, tenho certeza que gostará do <command>iptables.
+
+
+
+ fw-iptables-tiposfw">###Tipos de firewalls
+
+Existem basicamente dois tipos de firewalls:
+
+<itemizedlist>
+<listitem>
+
+<literal>nível de aplicação - Este tipo de firewall analisam o
+conteúdo do pacote para tomar suas decisões de filtragem.  Firewalls deste tipo
+são mais intrusivos (pois analisam o conteúdo de tudo que passa por ele) e
+permitem um controle relacionado com o conteúdo do tráfego.  Alguns firewalls
+em nível de aplicação combinam recursos básicos existentes em firewalls em
+nível de pacotes combinando as funcionalidade de controle de tráfego/controle
+de acesso em uma só ferramenta.  Servidores proxy, como o
+<command>squid, são um exemplo deste tipo de firewall.
+
+
+<listitem>
+
+<literal>nível de pacotes - Este tipo de firewall toma as decisões
+baseadas nos parâmetros do pacote, como porta/endereço de origem/destino,
+estado da conexão, e outros parâmetros do pacote.  O firewall então pode negar
+o pacote (DROP) ou deixar o pacote passar (ACCEPT).  O
+<command>iptables é um excelente firewall que se encaixa nesta
+categoria.
+
+
+Firewall em nível de pacotes é o assunto explicado nesta seção do guia mas será
+apresentada uma explicação breve sobre o funcionamento de análise de strings do
+<command>iptables.
+
+
+
+
+Os dois tipos de firewalls podem ser usados em conjunto para fornecer uma
+camada dupla de segurança no acesso as suas máquinas/máquinas clientes.
+
+
+
+ fw-iptables-proteger-oque">###O que proteger?
+
+Antes de iniciar a construção do firewall é bom pensar nos seguintes pontos:
+
+<itemizedlist>
+<listitem>
+
+Quais serviços precisa proteger.  Serviços que devem ter acesso garantido a
+usuários externos e quais serão bloqueados a todas/determinadas máquinas.  É
+recomendável bloquear o acesso a todas portas menores que 1024 por executarem
+serviços que rodam com privilégio de usuário <literal>root, e
+autorizar somente o acesso as portas que realmente deseja (configuração
+restritiva nesta faixa de portas).
+
+
+<listitem>
+
+Que tipo de conexões eu posso deixar passar e quais bloquear.  Serviços com
+autenticação em texto plano e potencialmente inseguros como rlogin, telnet,
+ftp, NFS, DNS, LDAP, SMTP RCP, X-Window são serviços que devem ser ter acesso
+garantido somente para máquinas/redes que você confia.  Estes serviços podem
+não ser só usados para tentativa de acesso ao seu sistema, mas também como
+forma de atacar outras pessoas aproveitando-se de problemas de configuração.
+
+
+A configuração do firewall ajuda a prevenir isso, mesmo se um serviço estiver
+mal configurado e tentando enviar seus pacotes para fora, será impedido.  Da
+mesma forma se uma máquina Windows de sua rede for infectada por um trojan não
+haverá pânico: o firewall poderá estar configurado para bloquear qualquer
+tentativa de conexão vinda da internet (cracker) para as máquinas de sua rede.
+
+
+Para cópia de arquivos via rede insegura (como através da Internet), é
+recomendado o uso de serviços que utilizam criptografia para login e
+transferência de arquivos (veja <xref linkend="ssh"/>) ou a configuração de uma
+VPN.
+
+
+<listitem>
+
+Que máquinas terão acesso livre e quais serão restritas.
+
+
+<listitem>
+
+Que serviços deverão ter prioridade no processamento.
+
+
+<listitem>
+
+Que máquinas/redes NUNCA deverão ter acesso a certas/todas máquinas.
+
+
+<listitem>
+
+O volume de tráfego que o servidor manipulará.  Através disso você pode ter que
+balancear o tráfego entre outras máquinas, configurar proteções contra DoS, syn
+flood, etc.
+
+
+<listitem>
+
+O que tem permissão de passar de uma rede para outra (em máquinas que atuam
+como roteadores/gateways de uma rede interna).
+
+
+<listitem>
+
+Etc.
+
+
+
+
+A análise destes pontos pode determinar a complexidade do firewall, custos de
+implementação, prazo de desenvolvimento e tempo de maturidade do código para
+implementação.  Existem muitos outros pontos que podem entrar na questão de
+desenvolvimento de um sistema de firewall, eles dependem do tipo de firewall
+que está desenvolvendo e das políticas de segurança de sua rede.
+
+
+
+ fw-iptables-regras-oque">###O que são regras?
+
+As regras são como comandos passados ao <command>iptables para que
+ele realize uma determinada ação (como bloquear ou deixar passar um pacote) de
+acordo com o endereço/porta de origem/destino, interface de origem/destino,
+etc.  As regras são armazenadas dentro dos chains e processadas na ordem que
+são inseridas.
+
+
+As regras são armazenadas no kernel, o que significa que quando o computador
+for reiniciado tudo o que fez será perdido.  Por este motivo elas deverão ser
+gravadas em um arquivo para serem carregadas a cada inicialização.
+
+
+Um exemplo de regra: <literal>iptables -A INPUT -s 123.123.123.1 -j
+DROP.
+
+
+
+ fw-iptables-chains-oque">###O que são chains?
+
+Os **Chains** são locais onde as regras do firewall definidas
+pelo usuário são armazenadas para operação do firewall.  Existem dois tipos de
+chains: os embutidos (como os chains **INPUT**,
+**OUTPUT** e **FORWARD**) e os criados pelo
+usuário.  Os nomes dos chains embutidos devem ser especificados sempre em
+maiúsculas (note que os nomes dos chains são case-sensitive, ou seja, o chain
+<literal>input é completamente diferente de
+<literal>INPUT).
+
+
+
+ fw-iptables-tabelas">###O que são tabelas?
+
+Tabelas são os locais usados para armazenar os chains e conjunto de regras com
+uma determinada característica em comum.  As tabelas podem ser referenciadas
+com a opção **-t tabela** e existem 3 tabelas disponíveis no
+<command>iptables:
+
+<itemizedlist>
+<listitem>
+
+<literal>filter - Esta é a tabela padrão, contém 3 chains padrões:
+
+<itemizedlist>
+<listitem>
+
+<literal>INPUT - Consultado para dados que chegam a máquina
+
+
+<listitem>
+
+<literal>OUTPUT - Consultado para dados que saem da máquina
+
+
+<listitem>
+
+<literal>FORWARD - Consultado para dados que são redirecionados para
+outra interface de rede ou outra máquina.
+
+
+
+
+Os chains **INPUT** e **OUTPUT** somente são
+atravessados por conexões indo/se originando de localhost.
+
+
+**OBS**: Para conexões locais, somente os chains
+**INPUT** e **OUTPUT** são consultados na
+tabela filter.
+
+
+<listitem>
+
+<literal>nat - Usada para dados que gera outra conexão (masquerading,
+source nat, destination nat, port forwarding, proxy transparente são alguns
+exemplos).  Possui 3 chains padrões:
+
+<itemizedlist>
+<listitem>
+
+<literal>PREROUTING - Consultado quando os pacotes precisam ser
+modificados logo que chegam.  É o chain ideal para realização de DNAT e
+redirecionamento de portas (<xref linkend="fw-iptables-nat-dnat"/>).
+
+
+<listitem>
+
+<literal>OUTPUT - Consultado quando os pacotes gerados localmente
+precisam ser modificados antes de serem roteados.  Este chain somente é
+consultado para conexões que se originam de IPs de interfaces locais.
+
+
+<listitem>
+
+<literal>POSTROUTING - Consultado quando os pacotes precisam ser
+modificados após o tratamento de roteamento.  É o chain ideal para realização
+de SNAT e IP Masquerading (<xref linkend="fw-iptables-nat-snat"/>).
+
+
+
+
+<listitem>
+
+<literal>mangle - Utilizada para alterações especiais de pacotes
+(como modificar o tipo de serviço (TOS) ou outros detalhes que serão explicados
+no decorrer do capítulo.  Possui 2 chains padrões:
+
+<itemizedlist>
+<listitem>
+
+<literal>INPUT - Consultado quando os pacotes precisam ser
+modificados antes de serem enviados para o chain **INPUT** da
+tabela **filter**.
+
+
+<listitem>
+
+<literal>FORWARD - Consultado quando os pacotes precisam ser
+modificados antes de serem enviados para o chain **FORWARD**
+da tabela **filter**.
+
+
+<listitem>
+
+<literal>PREROUTING - Consultado quando os pacotes precisam ser
+modificados antes de ser enviados para o chain **PREROUTING**
+da tabela **nat**.
+
+
+<listitem>
+
+<literal>POSTROUTING - Consultado quando os pacotes precisam ser
+modificados antes de serem enviados para o chain
+**POSTROUTING** da tabela **nat**.
+
+
+<listitem>
+
+<literal>OUTPUT - Consultado quando os pacotes precisam ser
+modificados antes de serem enviados para o chain **OUTPUT** da
+tabela **nat**.
+
+
+
+
+Veja <xref linkend="fw-iptables-mangle"para mais detalhes sobre a tabela
+mangle.
+
+
+
+
+
+ fw-iptables-supkernel">###Habilitando o suporte ao iptables no kernel
+
+Para usar toda a funcionalidade do firewall <command>iptables,
+permitindo fazer o controle do que tem ou não permissão de acessar sua máquina,
+fazer Masquerading/NAT em sua rede, etc., você precisará dos seguintes
+componentes compilados em seu kernel (os módulos experimentais fora ignorados
+intencionalmente):
+
+<screen>
+*
+* Network Options:
+*
+
+Network packet filtering (replaces ipchains) [Y/m/n/?]
+ Network packet filtering debugging [Y/m/n/?]
+
+e na Subseção:
+
+*
+*   IP: Netfilter Configuration
+*
+Connection tracking (required for masq/NAT) (CONFIG_IP_NF_CONNTRACK) [M/n/y/?] 
+  FTP protocol support (CONFIG_IP_NF_FTP) [M/n/?] 
+  IRC protocol support (CONFIG_IP_NF_IRC) [M/n/?]
+IP tables support (required for filtering/masq/NAT) (CONFIG_IP_NF_IPTABLES) [Y/m/n/?]
+  limit match support (CONFIG_IP_NF_MATCH_LIMIT) [Y/m/n/?] 
+  MAC address match support (CONFIG_IP_NF_MATCH_MAC) [M/n/y/?] 
+  netfilter MARK match support (CONFIG_IP_NF_MATCH_MARK) [M/n/y/?] 
+  Multiple port match support (CONFIG_IP_NF_MATCH_MULTIPORT) [M/n/y/?] 
+  TOS match support (CONFIG_IP_NF_MATCH_TOS) [M/n/y/?] 
+  LENGTH match support (CONFIG_IP_NF_MATCH_LENGTH) [M/n/y/?]
+  TTL match support (CONFIG_IP_NF_TTL) [M/n/y/?]
+  tcpmss match support (CONFIG_IP_NF_MATCH_TCPMSS) [M/n/y/?] 
+  Connection state match support (CONFIG_IP_NF_MATCH_STATE) [M/n/?] 
+  Packet filtering (CONFIG_IP_NF_FILTER) [M/n/y/?] 
+    REJECT target support (CONFIG_IP_NF_TARGET_REJECT) [M/n/?] 
+  Full NAT (CONFIG_IP_NF_NAT) [M/n/?] 
+    MASQUERADE target support (CONFIG_IP_NF_TARGET_MASQUERADE) [M/n/?] 
+    REDIRECT target support (CONFIG_IP_NF_TARGET_REDIRECT) [M/n/?] 
+  Packet mangling (CONFIG_IP_NF_MANGLE) [M/n/y/?] 
+    TOS target support (CONFIG_IP_NF_TARGET_TOS) [M/n/?] 
+    MARK target support (CONFIG_IP_NF_TARGET_MARK) [M/n/?] 
+  LOG target support (CONFIG_IP_NF_TARGET_LOG) [M/n/y/?] 
+  TCPMSS target support (CONFIG_IP_NF_TARGET_TCPMSS) [M/n/y/?]
+
+
+Esta configuração permite que você não tenha problemas para iniciar o uso e
+configuração do seu firewall iptables, ela ativa os módulos necessários para
+utilização de todos os recursos do firewall <command>iptables.
+Quando conhecer a função de cada um dos parâmetros acima (durante o decorrer do
+texto), você poderá eliminar muitas das opções desnecessárias para seu estilo
+de firewall ou continuar fazendo uso de todas ;-)
+
+
+**OBS1:** A configuração acima leva em
+consideração que você NÃO executará os códigos antigos de firewall
+<command>ipfwadm e <command>ipchains.  Caso deseje utilizar
+o <command>ipchains ou o <command>ipfwadm, será preciso
+responder com "M" a questão "IP tables support (required for
+filtering/masq/NAT) (CONFIG_IP_NF_IPTABLES)".  Será necessário carregar
+manualmente o módulo correspondente ao firewall que deseja utilizar
+(<literal>modprobe <filename>iptables_filter.o</filename> no caso do
+<command>iptables).
+
+
+Não execute mais de um tipo de firewall ao mesmo tempo!!!
+
+
+**OBS2:** É recomendável ativar o daemon
+<command>kmod para carga automática de módulos, caso contrário será
+necessário compilar todas as partes necessárias embutidas no kernel, carregar
+os módulos necessários manualmente ou pelo <command>iptables (através
+da opção **--modprobe=módulo**).
+
+
+
+ fw-iptables-proxy">###Ligando sua rede interna a Internet
+
+Se a sua intenção (como da maioria dos usuários) é conectar sua rede interna a
+Internet de forma rápida e simples, leia <xref linkend="fw-iptables-nat-fastmasquerade"ou <xref linkend="fw-iptables-nat-snat"/>.  Um exemplo prático de configuração de
+Masquerading deste tipo é encontrado em <xref linkend="fw-iptables-exemplo-snat"/>.
+
+
+Após configurar o masquerading, você só precisará especificar o endereço IP da
+máquina masquerading (servidor) como **Gateway** da rede.  No
+<command>Windows 9x/NT/2000 isto é feito no Painel de
+Controle/Rede/Propriedades de Tcp/IP.  No <command>Linux pode ser
+feito com <literal>route add default gw IP_do_Servidor.
+
+
+
+
+
+ fw-iptables-chains">###Manipulando chains
+
+O <command>iptables trabalha com uma tabela de regras que é analisada
+uma a uma até que a última seja processada.  Por padrão, se uma regra tiver
+qualquer erro, uma mensagem será mostrada e ela descartada.  O pacote não
+conferirá e a ação final (se ele vai ser aceito ou rejeitado) dependerá das
+regras seguintes.
+
+
+As opções passadas ao <command>iptables usadas para manipular os
+chains são **SEMPRE** em maiúsculas.  As
+seguintes operações podem ser realizadas:
+
+ fw-iptables-chains-A">###Adicionando regras - A
+
+Como exemplo vamos criar uma regra que bloqueia o acesso a nosso própria
+máquina (127.0.0.1 - loopback).  Primeiro daremos um ping para verificar seu
+funcionamento:
+
+<screen>
+#ping 127.0.0.1
+PING 127.0.0.1 (127.0.0.1): 56 data bytes
+64 bytes from 127.0.0.1: icmp_seq=0 ttl=255 time=0.6 ms
+64 bytes from 127.0.0.1: icmp_seq=1 ttl=255 time=0.5 ms
+
+--- 127.0.0.1 ping statistics ---
+2 packets transmitted, 2 packets received, 0% packet loss
+round-trip min/avg/max = 0.5/0.5/0.6 ms
+
+
+Ok, a máquina responde, agora vamos incluir uma regra no chain INPUT
+(**-A INPUT**) que bloqueie (**-j DROP**)
+qualquer acesso indo ao endereço 127.0.0.1 (**-d 127.0.0.1**):
+
+
+<literal>iptables -t filter -A INPUT -d 127.0.0.1 -j DROP
+
+
+Agora verificamos um novo ping:
+
+<screen>
+#ping 127.0.0.1
+PING 127.0.0.1 (127.0.0.1): 56 data bytes
+
+--- 127.0.0.1 ping statistics ---
+2 packets transmitted, 0 packets received, 100% packet loss
+
+
+Desta vez a máquina 127.0.0.1 não respondeu, pois todos os pacotes com o
+destino 127.0.0.1 (-d 127.0.0.1) são rejeitados (-j DROP).  A opção
+**-A** é usada para adicionar novas regras no final do chain.
+Além de **-j DROP** que serve para rejeitar os pacotes,
+podemos também usar **-j ACCEPT** para aceitar pacotes.  A
+opção <literal>-j é chamada de **alvo da regra** ou
+somente **alvo** pois define o destino do pacote que atravessa
+a regra (veja <xref linkend="fw-iptables-outras-alvo"/>).  Bem vindo a base de
+um sistema de firewall :-)
+
+
+**OBS1:** - O acesso a interface loopback não
+deve ser de forma alguma bloqueado, pois muitos aplicativos utilizam soquetes
+tcp para realizarem conexões, mesmo que você não possua uma rede interna.
+
+
+**OBS2:** - A tabela **filter**
+será usada como padrão caso nenhuma tabela seja especificada através da opção
+<literal>-t.
+
+
+
+ fw-iptables-chains-L">###Listando regras - L
+
+A seguinte sintaxe é usada para listar as regras criadas:
+
+
+<literal>iptables [**-t tabela**] -L
+[**chain**] [**opções**]
+
+
+Onde:
+
+<variablelist>
+<varlistentry>
+<term>**tabela**
+<listitem>
+
+É uma das tabelas usadas pelo <command>iptables.  Se a tabela não for
+especificada, a tabela **filter** será usada como padrão.
+Veja <xref linkend="fw-iptables-tabelas"para detalhes.
+
+
+
+<varlistentry>
+<term>**chain**
+<listitem>
+
+Um dos chains disponíveis na tabela acima (veja <xref linkend="fw-iptables-tabelas"/>) ou criado pelo usuário (<xref linkend="fw-iptables-chains-N"/>).  Caso o chain não seja especificado, todos
+os chains da tabela serão mostrados.
+
+
+
+<varlistentry>
+<term>**opções**
+<listitem>
+
+As seguintes opções podem ser usadas para listar o conteúdo de chains:
+
+<itemizedlist>
+<listitem>
+
+<literal>-v - Exibe mais detalhes sobre as regras criadas nos chains.
+
+
+<listitem>
+
+<literal>-n - Exibe endereços de máquinas/portas como números ao
+invés de tentar a resolução DNS e consulta ao
+<filename>/etc/services</filename>.  A resolução de nomes pode tomar muito
+tempo dependendo da quantidade de regras que suas tabelas possuem e velocidade
+de sua conexão.
+
+
+<listitem>
+
+<literal>-x - Exibe números exatos ao invés de números redondos.
+Também mostra a faixa de portas de uma regra de firewall.
+
+
+<listitem>
+
+<literal>--line-numbers - Exibe o número da posição da regra na
+primeira coluna da listagem.
+
+
+
+
+
+</variablelist>
+
+Para listar a regra criada anteriormente usamos o comando:
+
+<screen>
+#iptables -t filter -L INPUT
+
+Chain INPUT (policy ACCEPT)
+target     prot opt source               destination         
+DROP       all  --  anywhere             localhost
+
+
+O comando <literal>iptables -L INPUT -n tem o mesmo efeito, a
+diferença é que são mostrados números ao invés de nomes:
+
+<screen>
+#iptables -L INPUT -n
+
+Chain INPUT (policy ACCEPT)
+target     prot opt source               destination
+DROP       all  --  0.0.0.0/0            127.0.0.1
+
+
+#iptables -L INPUT -n --line-numbers
+
+Chain INPUT (policy ACCEPT)
+num target     prot opt source               destination
+1   DROP       all  --  0.0.0.0/0            127.0.0.1
+
+#iptables -L INPUT -n -v
+Chain INPUT (policy ACCEPT 78 packets, 5820 bytes)
+ pkts bytes target     prot opt in     out     source               destination
+    2   194 DROP       icmp --  *      *       0.0.0.0/0            127.0.0.1
+
+
+Os campos assim possuem o seguinte significado:
+
+<variablelist>
+<varlistentry>
+<term>Chain INPUT
+<listitem>
+
+Nome do chain listado
+
+
+
+<varlistentry>
+<term>(policy ACCEPT 78 packets, 5820 bytes)
+<listitem>
+
+política padrão do chain (veja <xref linkend="fw-iptables-chains-P"/>).
+
+
+
+<varlistentry>
+<term>pkts
+<listitem>
+
+Quantidade de pacotes que atravessaram a regra (veja <xref linkend="fw-iptables-chains-Z"/>).
+
+
+
+<varlistentry>
+<term>bytes
+<listitem>
+
+Quantidade de bytes que atravessaram a regra.  Pode ser referenciado com K
+(Kilobytes), M (Megabytes), G (Gigabytes).
+
+
+
+<varlistentry>
+<term>target
+<listitem>
+
+O alvo da regra, o destino do pacote.  Pode ser ACCEPT, DROP ou outro chain.
+Veja <xref linkend="fw-iptables-outras-alvo"para detalhes sobre a
+especificação de um alvo.
+
+
+
+<varlistentry>
+<term>prot
+<listitem>
+
+Protocolo especificado pela regra.  Pode ser udp, tcp, icmp ou all.  Veja <xref linkend="fw-iptables-outras-proto"para detalhes.
+
+
+
+<varlistentry>
+<term>opt
+<listitem>
+
+Opções extras passadas a regra.  Normalmente "!"  (veja <xref linkend="fw-iptables-outras-excessoes"/>) ou "f" (veja <xref linkend="fw-iptables-outras-fragmentos"/>).
+
+
+
+<varlistentry>
+<term>in
+<listitem>
+
+Interface de entrada (de onde os dados chegam).  Veja <xref linkend="fw-iptables-outras-iface"/>.
+
+
+
+<varlistentry>
+<term>out
+<listitem>
+
+Interface de saída (para onde os dados vão).  Veja <xref linkend="fw-iptables-outras-iface"/>.
+
+
+
+<varlistentry>
+<term>source
+<listitem>
+
+Endereço de origem.  Veja <xref linkend="fw-iptables-outras-endOD"/>.
+
+
+
+<varlistentry>
+<term>destination
+<listitem>
+
+Endereço de destino.  Veja <xref linkend="fw-iptables-outras-endOD"/>.
+
+
+
+<varlistentry>
+<term>outras opções
+<listitem>
+
+Estas opções normalmente aparecem quando são usadas a opção -x:
+
+<itemizedlist>
+<listitem>
+
+<literal>dpt ou dpts - Especifica a porta ou faixa de portas de
+destino.
+
+
+<listitem>
+
+<literal>reject-with icmp-port-unreachable - Significa que foi usado
+o alvo REJECT naquela regra (veja <xref linkend="fw-iptables-outras-alvo-REJECT"/>).
+
+
+
+
+
+</variablelist>
+
+
+ fw-iptables-chains-D">###Apagando uma regra - D
+
+Para apagar um chain, existem duas alternativas:
+
+<orderedlist numeration="arabic">
+<listitem>
+
+Quando sabemos qual é o número da regra no chain (listado com a opção
+<literal>-L) podemos referenciar o número diretamente.  Por exemplo,
+para apagar a regra criada acima:
+
+
+<literal>iptables -t filter -D INPUT 1
+
+
+Esta opção não é boa quando temos um firewall complexo com um grande número de
+regras por chains, neste caso a segunda opção é a mais apropriada.
+
+
+<listitem>
+
+Usamos a mesma sintaxe para criar a regra no chain, mas trocamos
+<literal>-A por <literal>-D:
+
+
+<literal>iptables -t filter -D INPUT -d 127.0.0.1 -j DROP
+
+
+Então a regra correspondentes no chain INPUT será automaticamente apagada
+(confira listando o chain com a opção "-L").  Caso o chain possua várias regras
+semelhantes, somente a primeira será apagada.
+
+
+**OBS:** Não é possível apagar os chains
+defaults do <command>iptables (**INPUT**,
+**OUTPUT**...).
+
+
+</orderedlist>
+
+
+ fw-iptables-chains-I">###Inserindo uma regra - I
+
+Precisamos que o tráfego vindo de <filename>192.168.1.15</filename> não seja
+rejeitado pelo nosso firewall.  Não podemos adicionar uma nova regra (-A) pois
+esta seria incluída no final do chain e o tráfego seria rejeitado pela primeira
+regra (nunca atingindo a segunda).  A solução é inserir a nova regra antes da
+regra que bloqueia todo o tráfego ao endereço <filename>127.0.0.1</filename> na
+posição 1:
+
+
+<literal>iptables -t filter -I INPUT 1 -s 192.168.1.15 -d 127.0.0.1 -j
+ACCEPT
+
+
+Após este comando, temos a regra inserida na primeira posição do chain (repare
+no número 1 após INPUT) e a antiga regra número 1 passa a ser a número 2.
+Desta forma a regra acima será consultada, se a máquina de origem for
+192.168.1.15 então o tráfego estará garantido, caso contrário o tráfego com o
+destino 127.0.0.1 será bloqueado na regra seguinte.
+
+
+
+ fw-iptables-chains-R">###Substituindo uma regra - R
+
+Após criar nossa regra, percebemos que a nossa intenção era somente bloquear os
+pings com o destino <filename>127.0.0.1</filename> (pacotes ICMP) e não havia
+necessidade de bloquear todo o tráfego da máquina.  Existem duas alternativas:
+apagar a regra e inserir uma nova no lugar ou modificar diretamente a regra já
+criada sem afetar outras regras existentes e mantendo a sua ordem no chain
+(isso é muito importante).  Use o seguinte comando:
+
+
+<literal>iptables -R INPUT 2 -d 127.0.0.1 -p icmp -j DROP
+
+
+O número <literal>2 é o número da regra que será substituída no chain
+INPUT, e deve ser especificado.  O comando acima substituirá a regra 2 do chain
+INPUT (-R INPUT 2) bloqueando (-j DROP) qualquer pacote icmp (-p icmp) com o
+destino <filename>127.0.0.1</filename> (-d 127.0.0.1).
+
+
+
+ fw-iptables-chains-N">###Criando um novo chain - N
+
+Em firewalls organizados com um grande número de regras, é interessante criar
+chains individuais para organizar regras de um mesmo tipo ou que tenha por
+objetivo analisar um tráfego de uma mesma categoria (interface, endereço de
+origem, destino, protocolo, etc) pois podem consumir muitas linhas e tornar o
+gerenciamento do firewall confuso (e conseqüentemente causar sérios riscos de
+segurança).  O tamanho máximo de um nome de chain é de 31 caracteres e podem
+conter tanto letras maiúsculas quanto minúsculas.
+
+
+<literal>iptables [**-t tabela**] [**-N
+novochain**]
+
+
+Para criar o chain **internet** (que pode ser usado para
+agrupar as regras de internet) usamos o seguinte comando:
+
+<screen>
+ iptables -t filter -N internet
+
+
+Para inserir regras no chain **internet** basta especifica-lo
+após a opção -A:
+
+<screen>
+ iptables -t filter -A internet -s 200.200.200.200 -j DROP
+
+
+E então criamos um pulo (-j) do chain **INPUT** para o chain
+**internet**:
+
+
+<literal>iptables -t filter -A INPUT -j internet
+
+
+**OBS:** O chain criando pelo usuário pode ter
+seu nome tanto em maiúsculas como minúsculas.
+
+
+Se uma máquina do endereço 200.200.200.200 tentar acessar sua máquina, o
+<command>iptables consultará as seguintes regras:
+
+<screen>
+`INPUT'                         `internet'
+ ----------------------------    -----------------------------
+ | Regra1: -s 192.168.1.15  |    | Regra1: -s 200.200.200.200|
+ |--------------------------|    |---------------------------|
+ | Regra2: -s 192.168.1.1   |    | Regra2: -d 192.168.1.1    |
+ |--------------------------|    -----------------------------
+ | Regra3: -j DROP          |
+ ----------------------------
+
+O pacote tem o endereço de origem 
+200.200.200.200, ele passa pela
+primeira e segunda regras do chain
+INPUT, a terceira regra direciona 
+para o chain internet
+
+                                    _______________________________________
+                           v       /                                      v
+ /-------------------------|-\    / /-------------------------------------|-\
+ | Regra1: -s 192.168.1.15 | |   /  | Regra1: -s 200.200.200.200 -j DROP  \_____\
+ |-------------------------|-|  /   |---------------------------------------|   /
+ | Regra2: -s 192.168.1.1  | | /    | Regra2: -d 200.200.200.202 -j DROP    |
+ |-------------------------|-|/     \---------------------------------------/
+ | Regra3: -j internet      /|
+ |---------------------------|       No chain internet, a primeira regra confere
+ | Regra4: -j DROP           |       com o endereço de origem 200.200.200.200 e 
+ \---------------------------/       o pacote é bloqueado. 
+ 
+
+Se uma máquina com o endereço de origem 200.200.200.201 tentar acessar a máquina, 
+então as regra consultadas serão as seguintes:
+
+
+O pacote tem o endereço de origem 
+200.200.200.201, ele passa pela
+primeira e segunda regras do chain
+INPUT, a terceira regra direciona 
+para o chain internet               ______________________________________
+                           v       /                                      v
+ /-------------------------|-\    / /-------------------------------------|-\
+ | Regra1: -s 192.168.1.15 | |   /  | Regra1: -s 200.200.200.200 -j DROP  | |
+ |-------------------------|-|  /   |-------------------------------------|-|
+ | Regra2: -s 192.168.1.1  | | /    | Regra2: -s 200.200.200.202 -j DROP  | |
+ |-------------------------|-|/     \-------------------------------------|-/
+ | Regra3: -j internet      /|                                            v
+ |---------------------------|                                           /
+ | Regra4: -j DROP         --+-------------------------------------------      
+ \------------------------/-/       O pacote passa pelas regras 1 e 2 do chain
+                          |         internet, como ele não confere com nenhuma
+                          v         das 2 regras ele retorna ao chain INPUT e é 
+ Esta regra é a número 4            analisado pela regra seguinte.
+ que diz para rejeitar o 
+ pacote.
+
+
+
+ s31.2.7">###Renomeando um chain criado pelo usuário - E
+
+Se por algum motivo precisar renomear um chain criado por você na tabela
+**filter**, **nat** ou
+**mangle**, isto poderá ser feito usando a opção
+**-E** do <command>iptables:
+
+<screen>
+iptables -t filter -E chain-antigo novo-chain
+
+
+Note que não é possível renomear os chains defaults do
+<command>iptables.
+
+
+
+ s31.2.8">###Listando os nomes de todas as tabelas atuais
+
+Use o comando <literal>cat /proc/net/ip_tables_names para fazer isto.
+É interessante dar uma olhada nos arquivos dentro do diretório
+<filename>/proc/net</filename>, pois os arquivos existentes podem lhe
+interessar para outras finalidades.
+
+
+
+ fw-iptables-chains-F">###Limpando as regras de um chain - F
+
+Para limpar todas as regras de um chain, use a seguinte sintaxe:
+
+
+<literal>iptables [**-t tabela**] [**-F
+chain**]
+
+
+Onde:
+
+<variablelist>
+<varlistentry>
+<term>**tabela**
+<listitem>
+
+Tabela que contém o chain que desejamos zerar.
+
+
+
+<varlistentry>
+<term>**chain**
+<listitem>
+
+Chain que desejamos limpar.  Caso um chain não seja especificado, todos os
+chains da tabela serão limpos.
+
+
+
+</variablelist>
+<screen>
+  iptables -t filter -F INPUT
+  iptables -t filter -F
+
+
+
+ fw-iptables-chains-X">###Apagando um chain criado pelo usuário - X
+
+Para apagarmos um chain criado pelo usuário, usamos a seguinte sintaxe:
+
+
+<literal>iptables [**-t tabela**] [**-X
+chain**]
+
+
+Onde:
+
+<variablelist>
+<varlistentry>
+<term>tabela
+<listitem>
+
+Nome da tabela que contém o chain que desejamos excluir.
+
+
+
+<varlistentry>
+<term>chain
+<listitem>
+
+Nome do chain que desejamos apagar.  Caso não seja especificado, todos os
+chains definidos pelo usuário na tabela especificada serão excluídos.
+
+
+
+</variablelist>
+
+**OBS:** - Chains embutidos nas tabelas não
+podem ser apagados pelo usuário.  Veja os nomes destes chains em <xref linkend="fw-iptables-tabelas"/>.
+
+<screen>
+ iptables -t filter -X internet
+ iptables -X
+
+
+
+ fw-iptables-chains-Z">###Zerando contador de bytes dos chains - Z
+
+Este comando zera o campo **pkts** e
+**bytes** de uma regra do <command>iptables.  Estes
+campos podem ser visualizados com o comando <command>iptables -L -v.
+A seguinte sintaxe é usada:
+
+
+<literal>iptables [**-t tabela**] [**-Z
+chain**] [**-L**]
+
+
+Onde:
+
+<variablelist>
+<varlistentry>
+<term>**tabela**
+<listitem>
+
+Nome da tabela que contém o chain que queremos zerar os contadores de bytes e
+pacotes.
+
+
+
+<varlistentry>
+<term>**chain**
+<listitem>
+
+Chain que deve ter os contadores zerados.  Caso não seja especificado, todos os
+chains da tabela terão os contadores zerados.  Note que as opções
+**-Z** e **-L** podem ser usadas juntas,
+assim o chain será listado e imediatamente zerado.  Isto evita a passagem de
+pacotes durante a listagem de um chain.
+
+
+
+</variablelist>
+<screen>
+ iptables -t filter -Z INPUT
+
+
+
+ fw-iptables-chains-P">###Especificando a política padrão de um chain - P
+
+A política padrão determina o que acontecerá com um pacote quando ele chegar ao
+final das regras contidas em um chain.  A política padrão do
+<command>iptables é "ACCEPT" mas isto pode ser alterado com o
+comando:
+
+
+<literal>iptables [**-t tabela**] [**-P
+chain**] [**ACCEPT/DROP**]
+
+
+Onde:
+
+<variablelist>
+<varlistentry>
+<term>tabela
+<listitem>
+
+Tabela que contém o chain que desejamos modificar a política padrão.
+
+
+
+<varlistentry>
+<term>chain
+<listitem>
+
+Define o chain que terá a política modificada.  O chain deve ser especificado.
+
+
+
+<varlistentry>
+<term>ACCEPT/DROP
+<listitem>
+
+ACCEPT aceita os pacotes caso nenhuma regra do chain conferir (usado em regras
+permissivas).  DROP rejeita os pacotes caso nenhuma regra do chain conferir
+(usado em regras restritivas).
+
+
+
+</variablelist>
+
+A política padrão de um chain é mostrada com o comando <command>iptables
+-L:
+
+<screen>
+# iptables -L INPUT
+
+Chain INPUT (policy ACCEPT)
+target     prot opt source               destination         
+DROP       icmp --  anywhere             localhost
+
+
+No exemplo acima, a política padrão de INPUT é ACCEPT (policy ACCEPT), o que
+significa que qualquer pacote que não seja rejeitado pela regra do chain, será
+aceito.  Para alterar a política padrão deste chain usamos o comando:
+
+<screen>
+ iptables -t filter -P INPUT DROP
+
+
+**NOTA:** As políticas de acesso PERMISSIVASS
+(ACCEPT) normalmente são usadas em conjunto com regras restritivas no chain
+correspondentes (tudo é bloqueado e o que sobrar é liberado) e políticas
+RESTRITIVAS (DROP) são usadas em conjunto com regras permissivas no chain
+correspondente (tudo é liberado e o que sobrar é bloqueado pela política
+padrão).
+
+
+
+
+
+ fw-iptables-outras">###Outras opções do iptables
+ fw-iptables-outras-endOD">###Especificando um endereço de origem/destino
+
+As opções <literal>-s (ou --src/--source)e <literal>-d (ou
+--dst/--destination) servem para especificar endereços de
+**origem** e **destino** respectivamente.  É
+permitido usar um endereço IP completo (como 192.168.1.1), um hostname
+(debian), um endereço fqdn (www.debian.org) ou um par
+**rede/máscara** (como 200.200.200.0/255.255.255.0 ou
+200.200.200.0/24).
+
+
+Caso um endereço/máscara não sejam especificados, é assumido
+**0/0** como padrão (todos as máquinas de todas as redes).  A
+interpretação dos endereços de origem/destino dependem do chain que está sendo
+especificado (como INPUT e OUTPUT por exemplo).
+
+
+**OBS:** Caso seja especificado um endereço fqdn
+e este resolver mais de um endereço IP, serão criadas várias regras, cada uma
+se aplicando a este endereço IP específico.  É recomendável sempre que possível
+a especificação de endereços IP's nas regras, pois além de serem muito rápidos
+(pois não precisar de resolução DNS) são mais seguros para evitar que nosso
+firewall seja enganado por um ataque de IP spoofing.
+
+<screen>
+# Bloqueia o tráfego vindo da rede 200.200.200.*:
+ iptables -A INPUT -s 200.200.200.0/24 -j DROP
+
+# Bloqueia conexões com o destino 10.1.2.3:
+iptables -A OUTPUT -d 10.1.2.3 -j DROP
+
+# Bloqueia o tráfego da máquina www.dominio.teste.org a rede 210.21.1.3
+# nossa máquina possui o endereço 210.21.1.3
+iptables -A INPUT -s www.dominio.teste.org -d 210.21.1.3 -j DROP
+
+
+
+ fw-iptables-outras-iface">###Especificando a interface de origem/destino
+
+As opções **-i** (ou --in-interface) e **-o**
+(ou --out-interface) especificam as interfaces de origem/destino de pacotes.
+Nem todos as chains aceitam as interfaces de origem/destino simultaneamente, a
+interface de entrada (-i) nunca poderá ser especificada em um chain OUTPUT e a
+interface de saída (-o) nunca poderá ser especificada em um chain INPUT.
+Abaixo uma rápida referência:
+
+<screen>
+
+          +---------------------+--------------------------------+
+  TABELA  |      CHAIN          |            INTERFACE           |
+          |                     +----------------+---------------+
+          |                     |  ENTRADA (-i)  |    SAÍDA (-o) |
++---------+---------------------+----------------+---------------+
+|         |  INPUT              |      SIM       |      NÃO      |
+| filter  |  OUTPUT             |      NÃO       |      SIM      |
+|         |  FORWARD            |      SIM       |      SIM      |
++---------+---------------------+----------------+---------------+
+|         | PREROUTING          |      SIM       |      NÃO      |
+| nat     | OUTPUT              |      NÃO       |      SIM      |
+|         | POSTROUTING         |      NÃO       |      SIM      |
++---------+---------------------+----------------+---------------+
+|         | PREROUTING          |      SIM       |      NÃO      |
+| mangle  |                     |                |               |
+|         | OUTPUT              |      NÃO       |      SIM      |
++---------+---------------------+----------------+---------------+
+
+
+O caminho do pacote na interface será determinado pelo tipo da interface e pela
+posição dos chains nas etapas de seu roteamento.  O chain OUTPUT da tabela
+filter somente poderá conter a interface de saída (veja a tabela acima).  O
+chain FORWARD da tabela filter é o único que aceita a especificação de ambas as
+interfaces, este é um ótimo chain para controlar o tráfego que passa entre
+interfaces do firewall.
+
+
+Por exemplo para bloquear o acesso do tráfego de qualquer máquina com o
+endereço 200.123.123.10 vinda da interface ppp0 (uma placa de fax-modem):
+
+<screen>
+iptables -A INPUT -s 200.123.123.10 -i ppp0 -j DROP
+
+
+A mesma regra pode ser especificada como
+
+<screen>
+iptables -A INPUT -s 200.123.123.10 -i ppp+ -j DROP
+
+
+O sinal de "+" funciona como um coringa, assim a regra terá efeito em qualquer
+interface de ppp0 a ppp9.  As interfaces ativas no momento podem ser listadas
+com o comando <command>ifconfig, mas é permitido especificar uma
+regra que faz referência a uma interface que ainda não existe, isto é
+interessante para conexões intermitentes como o PPP.  Para bloquear qualquer
+tráfego local para a Internet:
+
+<screen>
+iptables -A OUTPUT -o ppp+ -j DROP
+
+
+Para bloquear a passagem de tráfego da interface ppp0 para a interface eth1 (de
+uma de nossas redes internas):
+
+<screen>
+iptables -A FORWARD -i ppp0 -o eth1 -j DROP
+
+
+
+ fw-iptables-outras-proto">###Especificando um protocolo
+
+A opção <literal>-p (ou --protocol) é usada para especificar
+protocolos no <command>iptables.  Podem ser especificados os
+protocolos **tcp**, **udp** e
+**icmp**.  Por exemplo, para rejeitar todos os pacotes UDP
+vindos de 200.200.200.200:
+
+<screen>
+ iptables -A INPUT -s 200.200.200.200 -p udp -j DROP
+
+
+**OBS1:** Tanto faz especificar os nomes de
+protocolos em maiúsculas ou minúsculas.
+
+ fw-iptables-outras-proto-p">###Especificando portas de origem/destino
+
+As portas de origem/destino devem ser especificadas após o protocolo e podem
+ser precedidas por uma das seguintes opções:
+
+<itemizedlist>
+<listitem>
+
+<literal>--source-port ou --sport - Especifica uma porta ou faixa de
+portas de origem.
+
+
+<listitem>
+
+<literal>--destination-port ou --dport - Especifica uma porta ou
+faixa de portas de destino.
+
+
+
+
+Uma faixa de portas pode ser especificada através de
+<literal>PortaOrigem:PortaDestino:
+
+<screen>
+# Bloqueia qualquer pacote indo para 200.200.200.200 na faixa de 
+# portas 0 a 1023
+iptables -A OUTPUT -d 200.200.200.200 -p tcp --dport :1023 -j DROP
+
+
+Caso a **PortaOrigem** de uma faixa de portas não seja
+especificada, 0 é assumida como padrão, caso a **Porta
+Destino** não seja especificada, 65535 é assumida como padrão.  Caso
+precise especificar diversas regras que envolvam o tratamento de portas
+diferentes, recomendo da uma olhada em <xref linkend="fw-iptables-mod-multiport"/>, antes de criar um grande número de
+regras.
+
+
+
+ fw-iptables-outras-proto-micmp">###Especificando mensagens do protocolo ICMP
+
+O protocolo ICMP não possui portas, mas é possível fazer um controle maior
+sobre o tráfego ICMP que entra/sai da rede através da especificação dos tipos
+de mensagens ICMP.  Os tipos de mensagens devem ser especificados com a opção
+"--icmp-type **CódigoICMP**" logo após a especificação do
+protocolo icmp:
+
+<screen>
+iptables -A INPUT -s 200.123.123.10 -p icmp --icmp-type time-exceeded -i ppp+ -j DROP
+
+
+A regra acima rejeitará mensagens ICMP do tipo "time-exceeded" (tempo de
+requisição excedido) que venham do endereço 200.123.123.10 através da interface
+**ppp+**.
+
+
+Alguns tipos de mensagens ICMP são classificados por categoria (como o próprio
+"time-exceeded"), caso a categoria "time-exceeded" seja especificada, todas as
+mensagens daquela categoria (como "ttl-zero-during-transit",
+"ttl-zero-during-reassembly") conferirão na regra especificada.Os tipos de
+mensagens ICMP podem ser obtidos com o comando <literal>iptables -p icmp
+-h:
+
+<screen>
+echo-reply (pong)
+destination-unreachable
+   network-unreachable
+   host-unreachable
+   protocol-unreachable
+   port-unreachable
+   fragmentation-needed
+   source-route-failed
+   network-unknown
+   host-unknown
+   network-prohibited
+   host-prohibited
+   TOS-network-unreachable
+   TOS-host-unreachable
+   communication-prohibited
+   host-precedence-violation
+   precedence-cutoff
+source-quench
+redirect
+   network-redirect
+   host-redirect
+   TOS-network-redirect
+   TOS-host-redirect
+echo-request (ping)
+router-advertisement
+router-solicitation
+time-exceeded (ttl-exceeded)
+   ttl-zero-during-transit
+   ttl-zero-during-reassembly
+parameter-problem
+   ip-header-bad
+   required-option-missing
+timestamp-request
+timestamp-reply
+address-mask-request
+address-mask-reply
+
+
+**OBS1:** Não bloqueie mensagens do tipo
+"host-unreachable" e "source-quench", pois terá sérios problemas no controle de
+suas conexões.  A primeira diz que o destino está inalcançavel e a segunda que
+o host está sobrecarregado, assim os pacotes devem ser enviados mais
+lentamente.
+
+
+
+ fw-iptables-outras-proto-syn">###Especificando pacotes syn
+
+Pacotes syn são usados para iniciarem uma conexão, o uso da opção --syn serve
+para especificar estes tipos de pacotes.  Desta maneira é possível bloquear
+somente os pacotes que iniciam uma conexão, sem afetar os pacotes restantes.
+Para que uma conexão ocorra é necessário que a máquina obtenha a resposta a
+pacotes syn enviados, caso ele seja bloqueado a resposta nunca será retornada e
+a conexão não será estabelecida.
+
+<screen>
+iptables -A INPUT -p tcp --syn --dport 23 -i ppp+ -j DROP
+
+
+A regra acima bloqueia (-j DROP) qualquer tentativa de conexão (--syn) vindas
+da interface ppp+ ao telnet (--dport 23) da máquina local, conexões já
+efetuadas ão são afetadas por esta regra.  A opção --syn somente pode ser
+especificada para o protocolo tcp.
+
+
+**ATENÇÃO:** - A situação de passagem de pacotes
+durante deve ser levada em conta durante a inicialização do firewall,
+bloqueando a passagem de pacotes durante o processo de configuração, criando
+regras que bloqueiam a passagem de pacotes (exceto para a interface loopback)
+até que a configuração do firewall esteja completa, pode ser uma solução
+eficiente.
+
+
+Outra alternativa segura é configurar as regras de firewall antes das
+interfaces de rede se tornarem ativas (usando a opção "pre-up comando_firewall"
+no arquivo de configuração <filename>/etc/network/interfaces</filename> em
+sistemas <command>Debian.
+
+
+
+
+
+ fw-iptables-outras-fragmentos">###Especificando fragmentos
+
+A opção "-f" (ou --fragment) permite especificar regras que confiram com
+fragmentos.  Fragmentos são simplesmente um pacote maior dividido em pedaços
+para poder ser transmitido via rede TCP/IP para remontagem do pacote pela
+máquina de destino.
+
+
+Somente o primeiro fragmento possui detalhes de cabeçalho para ser processado,
+os segundos e seguintes somente possuem alguns cabeçalhos necessários para dar
+continuidade ao processo de remontagem do pacote no destino.
+
+
+Uma regra como
+
+<screen>
+iptables -A INPUT -s 200.200.200.1 -f -j DROP
+
+
+derrubará os fragmentos de 200.200.200.1 derrubará o segundo pacote e pacotes
+seguintes enviados por 200.200.200.1 até nós.
+
+
+**OBS1:** Note que se o cabeçalho do pacote não
+tiver detalhes suficientes para checagem de regras no
+<command>iptables, a regra simplesmente não ira conferir.
+
+
+**OBS2:** Não é preciso especificar a opção "-f"
+para conexões NAT, pois os pacotes são remontados antes de entrarem no código
+de filtragem.
+
+
+**OBS3:** A opção "-f" também pode ser usada
+para evitar o flood por fragmentos (bomba de fragmentos) que, dependendo da
+intensidade, podem até travar a máquina.
+
+
+
+ fw-iptables-outras-excessoes">###Especificando uma exceção
+
+Muitos parâmetros (como o endereço de origem/destino, protocolo, porta,
+mensagens ICMP, fragmentos, etc) podem ser precedidos pelo sinal "!"  que
+significa exceção.  Por exemplo:
+
+<screen>
+iptables -t filter -A INPUT ! -s 200.200.200.10 -j DROP
+
+
+Diz para rejeitar todos os pacotes EXCETO os que vem do endereço
+<filename>200.200.200.10</filename>.
+
+<screen>
+iptables -A INPUT -p tcp ! --syn -s 200.200.200.10 ! -i eth0 -j DROP
+
+
+Diz para bloquear todos os pacotes EXCETO os que iniciam conexões (!  --syn),
+EXCETO para pacotes vindos pela interface eth0 (!  -i eth0).
+
+<screen>
+iptables -A INPUT -s 200.200.200.10 ! -p tcp -j DROP
+
+
+Bloqueia todos os pacotes vindos de 200.200.200.10, EXCETO os do protocolo tcp.
+
+
+
+ fw-iptables-outras-alvo">###Especificando um alvo
+
+O alvo (-j) é o destino que um pacote terá quando conferir com as condições de
+uma regra, um alvo pode dizer para bloquear a passagem do pacote (-j DROP),
+aceitar a passagem do pacote (-j ACCEPT), registrar o pacote no sistema de log
+(-j LOG), rejeitar o pacote (-j REJECT), redirecionar um pacote -j REDIRECT,
+retornar ao chain anterior sem completar o processamento no chain atual (-j
+RETURN), passar para processamento de programas externos (-j QUEUE), fazer
+source nat (-j SNAT), destination nat (-j DNAT), etc.  Podem existir mais
+alvos, pois o <command>iptables é modularizável, e módulos que
+acrescentam mais funções podem ser carregados em adição aos já existentes no
+kernel.
+
+
+Nos exemplos anteriores vimos o uso de diversos alvos como o DROP e o ACCEPT.
+Apenas farei uma breve referência sobre os alvos mais usados em operações
+comuns dos chains.  Os alvos REDIRECT, SNAT e DNAT serão explicados em uma
+seção seguinte:
+
+<variablelist>
+<varlistentry>
+<term>ACCEPT
+<listitem>
+
+O pacote é ACEITO e o processamento das regras daquele chains é concluído.
+Pode ser usado como alvo em todos os chains de todas as tabelas do
+<command>iptables e também pode ser especificado na política padrão
+das regras do firewall (veja <xref linkend="fw-iptables-chains-P"/>).
+
+
+
+<varlistentry>
+<term>DROP
+<listitem>
+
+Rejeita o pacote e o processamento das regras daquele chain é concluído.  Pode
+ser usado como alvo em todos os chains de todas as tabelas do
+<command>iptables e também pode ser especificado na política padrão
+das regras do firewall (veja <xref linkend="fw-iptables-chains-P"/>).
+
+
+
+<varlistentry>
+<term>REJECT
+<listitem>
+
+Este é um módulo opcional que faz a mesma função do alvo
+**DROP** com a diferença de que uma mensagem ICMP do tipo
+"icmp-port-unreachable" (TCP/UDP) ou "host-unreachable" (ICMP) é retornada para
+a máquina de origem.  Pode ser usado como alvo somente nos chains da tabela
+(não como política padrão).
+
+
+
+<varlistentry>
+<term>LOG
+<listitem>
+
+Este módulo envia uma mensagem ao <command>syslog caso a regra
+confira, o processamento continua normalmente para a próxima regra (o pacote
+não é nem considerado ACEITO ou REJEITADO).
+
+
+
+<varlistentry>
+<term>RETURN
+<listitem>
+
+Retorna o processamento do chain anterior sem processar o resto do chain atual.
+
+
+
+<varlistentry>
+<term>QUEUE
+<listitem>
+
+Passa o processamento para um programa a nível de usuário.
+
+
+
+</variablelist>
+ fw-iptables-outras-alvo-REJECT">###Alvo REJECT
+
+Para ser usado, o módulo <filename>ipt_REJECT</filename> deve ser compilado no
+kernel ou como módulo.  Este alvo rejeita o pacote (como o
+**DROP**) e envia uma mensagem ICMP do tipo
+"icmp-port-unreachable" como padrão para a máquina de origem.
+
+
+É um alvo interessante para bloqueio de portas TCP, pois em alguns casos da a
+impressão que a máquina não dispõe de um sistema de firewall (o alvo DROP causa
+uma parada de muito tempo em alguns portscanners e tentativas de conexão de
+serviços, revelando imediatamente o uso de um sistema de firewall pela
+máquina).  O alvo REJECT vem dos tempos do ipchains e somente pode ser usado na
+tabela **filter**.  Quando um pacote confere, ele é rejeitado
+com a mensagem ICMP do tipo "port unreachable", é possível especificar outro
+tipo de mensagem ICMP com a opção **--reject-with tipo_icmp**.
+
+
+**OBS:** REJECT pode ser usado somente como alvo
+na tabela filter e não é possível especifica-lo como política padrão do chain
+filter (como acontecia no <command>ipchains.  Uma forma alternativa é
+inserir como última regra uma que pegue todos os pacotes restantes daquele
+chain e tenha como alvo REJECT (como <literal>iptables -A INPUT -j
+REJECT), desta forma ele nunca atingirá a política padrão do chain.
+
+<screen>
+# Rejeita pacotes vindos de 200.200.200.1 pela interface ppp0: 
+iptables -A INPUT -s 200.200.200.1 -i ppp+ -j REJECT
+
+
+
+ fw-iptables-outras-alvo-LOG">###Especificando LOG como alvo
+
+Este alvo é usado para registrar a passagem de pacotes no
+<command>syslog do sistema.  É um alvo muito interessante para ser
+usado para regras que bloqueiam determinados tráfegos no sistema (para que o
+administrador tome conhecimento sobre tais tentativas), para regras de fim de
+chain (quando você tem um grande conjunto de regras em um firewall restritivo e
+não sabe onde suas regras estão sendo bloqueadas), para satisfazer sua
+curiosidade, etc.
+
+<screen>
+# Para registrar o bloqueio de pacotes vindos de 200.200.200.1 pela interface ppp0
+iptables -A INPUT -s 200.200.200.1 -i ppp+ -j LOG
+# Para efetuar o bloqueio
+iptables -A INPUT -s 200.200.200.1 -i ppp+ -j REJECT
+
+
+Note que no exemplo anterior a regra que registra o pacote (-j LOG) deve
+aparecer antes da regra que REJEITA (-j REJECT), caso contrário a regra de LOG
+nunca funcionará.  A regra que REJEITA poderia também ser trocada por uma regra
+que ACEITA, caso queira registrar um pacote que deve ser aceito (se a política
+padrão do seu firewall for restritiva (-P DROP).  A única coisa que muda nas
+regras de log é o alvo da regra, isto facilita a implementação de grandes
+conjuntos de regras de firewall.
+
+
+A regra acima mostrará a seguinte saída no <command>syslog do
+sistema:
+
+<screen>
+Aug 25 10:08:01 debian kernel: IN=ppp0 OUT= MAC=10:20:30:40:50:60:70:80:90:00:00:00:08:00 SRC=200.200.200.1 DST=200.210.10.10 LEN=61 TOS=0x00 PREC=0x00 TTL=64 ID=0 DF PROTO=UDP SPT=1031 DPT=53 LEN=41
+
+
+Os campos possuem o seguinte significado:
+
+<variablelist>
+<varlistentry>
+<term>Aug 25 10:08:01
+<listitem>
+
+Mês, dia e hora do registro do pacote.
+
+
+
+<varlistentry>
+<term>debian
+<listitem>
+
+Nome do computador que registrou o pacote.
+
+
+
+<varlistentry>
+<term>kernel:
+<listitem>
+
+Daemon que registrou a mensagem, no caso o <command>iptables faz
+parte do próprio kernel.
+
+
+
+<varlistentry>
+<term>IN=ppp0
+<listitem>
+
+Especifica a interface de entrada (de onde o pacote veio).
+
+
+
+<varlistentry>
+<term>OUT=
+<listitem>
+
+Especifica a interface de saída (para onde o pacote foi).
+
+
+
+<varlistentry>
+<term>MAC=10:20:30:40:50:60:70:80:90:00:00:00:08:00
+<listitem>
+
+Endereço mac da interface de rede (pode ser obtido com <literal>arp
+interface).
+
+
+
+<varlistentry>
+<term>SRC=200.200.200.1
+<listitem>
+
+Endereço de origem do pacote.
+
+
+
+<varlistentry>
+<term>DST=200.210.10.10
+<listitem>
+
+Endereço de destino do pacote.
+
+
+
+<varlistentry>
+<term>SEQ=234234343
+<listitem>
+
+Número de seqüência da recepção.  É ativado com a opção
+**--log-tcp-sequence**.
+
+
+
+<varlistentry>
+<term>LEN=61
+<listitem>
+
+Tamanho em bytes do pacote IP.
+
+
+
+<varlistentry>
+<term>TOS=0x00
+<listitem>
+
+Prioridade do cabeçalho TOS (Tipo).  Veja a seção <xref linkend="fw-iptables-mangle-TOS"para mais detalhes.
+
+
+
+<varlistentry>
+<term>PREC=0x00
+<listitem>
+
+Prioridade do cabeçalho TOS (Precedência).  Veja a seção <xref linkend="fw-iptables-mangle-TOS"para mais detalhes.
+
+
+
+<varlistentry>
+<term>TTL=64
+<listitem>
+
+Tempo de vida do pacote.  No exemplo, 64 roteadores (hops).
+
+
+
+<varlistentry>
+<term>ID=0
+<listitem>
+
+Identificação única destes datagrama.  Esta identificação também é usada pelos
+fragmentos seguintes deste pacote.
+
+
+
+<varlistentry>
+<term>DF
+<listitem>
+
+Opção "Don't fragment" (não fragmentar) do pacote.  Usada quando o pacote é
+pequeno o bastante para não precisar ser fragmentado.
+
+
+
+<varlistentry>
+<term>MF
+<listitem>
+
+Opção "More Fragments" (mais fragmentos) estão para ser recebidos.
+
+
+
+<varlistentry>
+<term>FRAG=100
+<listitem>
+
+Tamanho do fragmento especificado em pacotes de 8 bits.  No exemplo acima, o
+pacote tem o tamanho de 800 bytes (100*8).
+
+
+
+<varlistentry>
+<term>PROTO=UDP
+<listitem>
+
+Nome do protocolo.  Pode ser TCP, UDP ou ICMP
+
+
+
+<varlistentry>
+<term>SPT=1031
+<listitem>
+
+Porta de origem da requisição.
+
+
+
+<varlistentry>
+<term>DPT=53
+<listitem>
+
+Porta de destino da requisição.
+
+
+
+<varlistentry>
+<term>LEN=41
+<listitem>
+
+Tamanho do pacote.
+
+
+
+</variablelist>
+
+O log acima mostra uma consulta DNS (porta destino 53) para nossa máquina
+(INPUT) de 200.200.200.1 para 200.210.10.10.
+
+
+O problema é que em um grande número de regras será difícil saber qual regra
+conferiu (pois teríamos que analisar o endereço/porta origem/destino) e o
+destino do pacote (se ele foi ACEITO ou BLOQUEADO) pois você pode ter regras
+para ambas as situações.  Por este motivo existem algumas opções úteis que
+podemos usar com o alvo LOG:
+
+<variablelist>
+<varlistentry>
+<term>--log-prefix "descrição"
+<listitem>
+
+Permite especificar uma descrição para a regra do firewall de até 29
+caracteres.  Caso tiver espaços, devem ser usadas "aspas".
+
+
+
+<varlistentry>
+<term>--log-level nível
+<listitem>
+
+Especifica o nível da mensagem no <command>syslog.  Veja os níveis na
+seção <xref linkend="log-syslogd-exemplo"do guia.
+
+
+
+<varlistentry>
+<term>--log-tcp-options
+<listitem>
+
+Registra campos do cabeçalho TCP nos logs do sistema.
+
+
+
+<varlistentry>
+<term>--log-ip-options
+<listitem>
+
+Registra campos do cabeçalho IP nos logs do sistema
+
+
+
+<varlistentry>
+<term>--log-tcp-sequence
+<listitem>
+
+Registra os números de seqüencia TCP.  Evite ao máximo o uso desta opção, pois
+a seqüencia de números TCP pode ser a chave para um seqüestro de seção ou IP
+spoofing em seu sistema caso algum usuário tenha acesso a estes logs.  Caso
+utilize tcp/ip em servidores públicos, o uso desta opção ajudará a entender bem
+os ataques DoS causados por syn-flood e porque ativar os SynCookies (veja <xref linkend="fw-iptables-mod-limit-synflood"/>).
+
+
+
+</variablelist>
+
+**OBS1:**Lembre-se que estas opções são
+referentes ao alvo LOG e devem ser usadas após este, caso contrário você terá
+um pouco de trabalho para analisar e consertar erros em suas regras do
+firewall.
+
+
+**OBS2:**Caso esteja usando o firewall em um
+servidor público, recomendo associar um limite a regra de log, pois um ataque
+poderia causar um DoS enchendo sua partição.  Leia mais sobre isso em <xref linkend="fw-iptables-mod-limit"/>.
+
+<screen>
+# Complementando o exemplo anterior:
+# Para registrar o bloqueio de pacotes vindos de 200.200.200.1 pela interface ppp0
+iptables -A INPUT -s 200.200.200.1 -i ppp+ -j LOG --log-prefix "FIREWALL: Derrubado "
+# Para efetuar o bloqueio
+iptables -A INPUT -s 200.200.200.1 -i ppp+ -j REJECT
+
+
+Retornará a seguinte mensagem no syslog:
+
+<screen>
+Aug 25 10:08:01 debian kernel: FIREWALL: Derrubado IN=ppp0 OUT= MAC=10:20:30:40:50:60:70:80:90:00:00:00:08:00 SRC=200.200.200.1 DST=200.210.10.10 LEN=61 TOS=0x00 PREC=0x00 TTL=64 ID=0 DF PROTO=UDP SPT=1031 DPT=53 LEN=41
+
+
+Agora você sabe o que aconteceu com o pacote (Rejeitado).  A padronização de
+mensagens de firewall é também importante para a criação de scripts de análise
+que poderão fazer a análise dos logs do seu firewall (para criação de
+estatísticas que podem servir como base para a criação de novas regras de
+firewall ou eliminação de outras).
+
+
+**OBS:** Se você sente falta da função "-l" do
+<command>ipchains que combina o alvo e log na mesma regra você pode
+criar um alvo como o seguinte:
+
+<screen>
+iptables -N log-drop
+iptables -A log-drop -j LOG
+iptables -A log-drop -j DROP
+
+
+E usar "log-drop" como alvo em suas regras.  Mesmo assim esta solução é
+"limitada" em relação a "-l" do <command>ipchains porque o
+<command>iptables não inclui detalhes de qual chain bloqueou o
+pacote/qual pacote foi bloqueado, assim é necessário a especificação da opção
+**--log-prefix** para as mensagens se tornarem mais
+compreensíveis.  Esta limitação pode ser contornada utilizando um firewall
+feito em linguagem shell script, desta forma você terá um controle maior sobre
+o seu programa usando funções e integração com outros utilitários.
+
+
+
+ fw-iptables-outras-alvo-RETURN">###Especificando RETURN como alvo
+
+O alvo RETURN diz ao <command>iptables interromper o processamento no
+chain atual e retornar o processamento ao chain anterior.  Ele é útil quando
+criamos um chain que faz um determinado tratamento de pacotes, por exemplo
+bloquear conexões vindas da internet para portas baixas, exceto para um
+endereço IP específico.  Como segue:
+
+<screen>
+1-) iptables -t filter -A INPUT -i ppp0 -j internet
+2-) iptables -t filter -j ACCEPT
+3-) iptables -t filter -N internet
+4-) iptables -t filter -A internet -s www.debian.org -p tcp --dport 80 -j RETURN
+5-) iptables -t filter -A internet -p tcp --dport 21 -j DROP
+6-) iptables -t filter -A internet -p tcp --dport 23 -j DROP
+7-) iptables -t filter -A internet -p tcp --dport 25 -j DROP
+8-) iptables -t filter -A internet -p tcp --dport 80 -j DROP
+
+
+Quando um pacote com o endereço <filename>www.debian.org</filename> tentando
+acessar a porta www (80) de nossa máquina através da internet (via interface
+ppp0), o chain número 1 confere, então o processamento continua no chain número
+4, o chain número 4 confere então o processamento volta para a regra número 2,
+que diz para aceitar o pacote.
+
+
+Agora se um pacote vem com o endereço <filename>www.dominio.com.br</filename>
+tentando acessar a porta www *80) de nossa máquina através da internet (via
+interface ppp0), o chain número 1 confere, então o processamento continua no
+chain número 4, que não confere.  O mesmo acontece com os chains 5, 6 e 7.  O
+chain número 8 confere, então o acesso é bloqueado.
+
+
+Como pode notou, o alvo RETURN facilita bastante a construção das regras do seu
+firewall, caso existam máquinas/redes que sejam exceções as suas regras.  Se
+ela não existisse, seria necessário especificar diversas opções -s, -d, etc
+para poder garantir o acesso livre a determinadas máquinas.
+
+
+
+
+
+ fw-iptables-outras-save-restore">###Salvando e Restaurando regras
+
+As regras que você está trabalhosamente criando e testando manualmente enquanto
+manipula o <command>iptables podem ser salvas de 2 formas; uma delas
+é escrevendo um shell script que tenha todos os comandos, um por linha.  Isto é
+recomendado quando tem um firewall grande e que exige uma boa padronização de
+regras, bem como sua leitura, comentários.  O script shell também permite o uso
+de funções presente no interpretador de comando, portanto se você é uma pessoa
+que gosta de interagir com as funções do shell e deixar as coisas mais
+flexíveis, prefira esta opção.
+
+
+A outra forma é usando as ferramentas <command>iptables-save e
+<command>iptables-restore baseada na idéia do
+<command>ipchains-save e <command>ipchains-restore.  O
+<command>iptables-save deve ser usado sempre que modificar regras no
+firewall iptables da seguinte forma:
+
+<screen>
+iptables-save &gt;/dir/iptables-regras
+
+
+Uma das vantagens do uso do <command>iptables-save é ele também
+salvar os contadores de chains, ou seja, a quantidade de pacotes que conferiram
+com a regra.  Isto também pode ser feito com algumas regras adicionais em seu
+shell script, caso tenha interesse nesses contadores para estatísticas ou
+outros tipos de relatórios.
+
+
+Para restaurar as regras salvas, utilize o comando:
+
+<screen>
+iptables-restore &lt;/dir/iptables-regras
+
+
+
+
+
+ fw-iptables-nat">###A tabela nat (Network Address Translation) - fazendo nat
+
+A tabela **nat** serve para controlar a tradução dos endereços
+que atravessam o código de roteamento da máquina <command>Linux.
+Existem 3 chains na tabela **nat**:
+**PREROUTING**, **OUTPUT** e
+**POSTROUTING** (veja <xref linkend="fw-iptables-tabelas"/>
+para maiores detalhes).
+
+
+A tradução de endereços tem inúmeras utilidades, uma delas é o Masquerading,
+onde máquinas de uma rede interna podem acessar a Internet através de uma
+máquina <command>Linux, redirecionamento de porta, proxy
+transparente, etc.  Esta seção abordará os tipos de NAT, exemplos de como criar
+rapidamente uma conexão IP masquerading e entender como a tradução de endereços
+funciona no <command>iptables.
+
+
+Se sua intenção é ligar sua rede a Internet existem duas opções:
+
+<itemizedlist>
+<listitem>
+
+Você possui uma conexão que lhe oferece um endereço IP dinâmico (a cada conexão
+é dado um endereço IP - como uma conexão PPP) então o IP masquerading é o que
+precisa (veja <xref linkend="fw-iptables-nat-fastmasquerade"ou <xref linkend="fw-iptables-nat-snat-masquerade"/>).
+
+
+<listitem>
+
+Você tem uma conexão que lhe oferece um endereço IP permanente (ADSL, por
+exemplo) então o SNAT é o que precisa (veja <xref linkend="fw-iptables-nat-snat"/>).
+
+
+
+ fw-iptables-nat-N">###Criando um novo chain na tabela NAT
+
+O procedimento para criação de um novo chain nesta tabela é o mesmo descrito em
+<xref linkend="fw-iptables-chains-N"será necessário somente especificar a
+tabela nat (-t nat) para que o novo chain não seja criado na tabela padrão (-t
+filter).
+
+<screen>
+iptables -t nat -N intra-inter
+
+
+Que criará o chain chamado **intra-inter** na tabela
+**nat**.  Para inserir regras neste chain será necessário
+especificar a opção "-t nat".
+
+
+
+ fw-iptables-nat-fastmasquerade">###Fazendo IP masquerading (para os apressados)
+
+Você precisará de um kernel com suporte ao <command>iptables (veja
+<xref linkend="fw-iptables-supkernel"e <command>ip_forward e então
+digitar os dois comandos abaixo para habilitar o masquerading para todas as
+máquinas da rede 192.168.1.*:
+
+<screen>
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -j MASQUERADE
+echo "1" &gt;/proc/sys/net/ipv4/ip_forward
+
+
+A configuração do servidor <command>Linux está completa, agora os
+clientes da rede precisarão ser configurados para usar o endereço IP do
+servidor <command>Linux como gateway.  É recomendável instalar um
+servidor proxy e DNS na máquina <command>Linux para acelerar o
+desempenho das requisições/resolução de nomes das máquinas em rede.  A
+utilização de bits TOS também pode trazer um grande aumento de velocidade para
+os diferentes serviços da rede (veja <xref linkend="fw-iptables-mangle-TOS"/>).
+
+
+
+ fw-iptables-nat-snat">###Fazendo SNAT
+
+SNAT (source nat - nat no endereço de origem) consiste em modificar o endereço
+de origem das máquinas clientes antes dos pacotes serem enviados.  A máquina
+roteadora é inteligente o bastante para lembrar dos pacotes modificados e
+reescrever os endereços assim que obter a resposta da máquina de destino,
+direcionando os pacotes ao destino correto.  Toda operação de SNAT é feita no
+chain **POSTROUTING**.
+
+
+É permitido especificar endereços de origem/destino, protocolos, portas de
+origem/destino, interface de entrada/saída (dependendo do chain), alvos, etc.
+É desnecessário especificar fragmentos na tabela nat, pois eles serão
+remontados antes de entrar no código de roteamento.
+
+
+O SNAT é a solução quando você tem acesso a internet através de um único IP e
+deseja fazer que sua rede tenha acesso a Internet através da máquina
+<command>Linux.  Nenhuma máquina da Internet poderá ter acesso direto
+as máquinas de sua rede interna via SNAT.
+
+
+**OBS:** A observação acima não leva em conta o
+controle de acesso externo configurado na máquina que estiver configurando o
+<command>iptables, uma configuração mau realizada pode expor sua
+máquina a acessos externos indesejados e comprometer sua rede interna caso
+alguém consiga acesso direto ao servidor.
+
+
+É necessário especificar SNAT como alvo (-j SNAT) quando desejar que as
+máquinas de sua rede interna tenha acesso a Internet através do IP fixo da
+máquina <command>Linux (para conexões intermitentes como PPP, veja
+<xref linkend="fw-iptables-nat-snat-masquerade"/>).  O parâmetro <literal>--to
+IP:portas deve ser usado após o alvo SNAT.  Ele serve para
+especificar um endereço IP, faixa de endereços e opcionalmente uma porta ou
+faixa de portas que será substituída.  Toda a operação de SNAT é realizada
+através do chain POSTROUTING:
+
+<screen>
+# Modifica o endereço IP dos pacotes vindos da máquina 192.168.1.2 da rede interna 
+# que tem como destino a interface eth1 para 200.200.217.40 (que é o nosso endereço 
+# IP da interface ligada a Internet). 
+iptables -t nat -A POSTROUTING -s 192.168.1.2 -o eth1 -j SNAT --to 200.200.217.40
+
+
+Os pacotes indo para a Internet (nossa conexão é feita via eth1, nossa
+interface externa) vindo do endereço 192.168.1.2, são substituídos por
+200.241.200.40 e enviados para fora.  Quando a resposta a requisição é
+retornada, a máquina com <command>iptables recebe os pacotes e faz a
+operação inversa, modificando o endereço 200.241.200.40 novamente para
+192.168.1.2 e enviando a resposta a máquina de nossa rede interna.  Após
+definir suas regras de NAT, execute o comando <literal>echo "1"
+&gt;/proc/sys/net/ipv4/ip_forward para habilitar o suporte a
+redirecionamento de pacotes no kernel.
+
+
+Também é possível especificar faixas de endereços e portas que serão
+substituídas:
+
+<screen>
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -o eth0 -j SNAT --to 200.200.217.40-200.200.217.50
+
+
+Modifica o endereço IP de origem de todas as máquinas da rede 192.168.1.0/24
+que tem o destino a interface eth0 para 200.241.200.40 a 200.241.200.50.  O
+endereço IP selecionado é escolhido de acordo com o último IP alocado.
+
+<screen>
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -o eth0 -j SNAT --to 200.200.217.40-200.200.217.50:1-1023
+
+
+Idêntico ao anterior, mas faz somente substituições na faixa de portas de
+origem de 1 a 1023.
+
+<screen>
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -o eth0 -j SNAT --to 200.200.217.40-200.200.217.50 --to 200.200.217.70-200.200.217.73
+
+
+Faz o mapeamento para a faixa de portas 200.200.217.40 a 200.200.217.50 e de
+200.200.217.70 a 200.200.217.73.
+
+
+**OBS1:** Se por algum motivo não for possível
+mapear uma conexão NAT, ela será derrubada.
+
+
+**OBS2:** Tenha certeza que as respostas podem
+chegar até a máquina que fez o NAT.  Se estiver fazendo SNAT em um endereço
+livre em sua rede (como 200.200.217.73).
+
+
+**OBS3:** Como notou acima, o SNAT é usado
+quando temos uma conexão externa com um ou mais IP's fixos.  O Masquerading é
+uma forma especial de SNAT usada para funcionar em conexões que recebem
+endereços IP aleatórios (PPP).
+
+
+**OBS4:** Não se esqueça de habilitar o
+redirecionamento de pacotes após fazer suas regra de NAT com o comando:
+<literal>echo "1" &gt;/proc/sys/net/ipv4/ip_forward, caso contrário o
+redirecionamento de pacotes não funcionará.
+
+ fw-iptables-nat-snat-masquerade">###Fazendo IP Masquerading
+
+O IP Masquerading é um tipo especial de SNAT usado para conectar a sua rede
+interna a internet quando você recebe um IP dinâmico de seu provedor (como em
+conexões ppp).  Todas as operações de IP Masquerading são realizadas no chain
+**POSTROUTING**.  Se você tem um IP fixo, deve ler <xref linkend="fw-iptables-nat-snat"/>.
+
+
+Para fazer IP Masquerading de uma máquina com o IP 192.168.1.2 para ter acesso
+a Internet, use o comando:
+
+<screen>
+iptables -t nat -A POSTROUTING -s 192.168.1.2/32 -o ppp0 -j MASQUERADE
+
+
+A diferença é que o alvo é **-j MASQUERADE**.  O comando acima
+faz IP Masquerading de todo o tráfego de 192.168.1.2 indo para a interface
+ppp0: O endereço IP dos pacotes vindos de 192.168.1.2 são substituídos pelo IP
+oferecido pelo seu provedor de acesso no momento da conexão, quando a resposta
+é retornada a operação inversa é realizada para garantir que a resposta chegue
+ao destino.  Nenhuma máquina da internet poderá ter acesso direto a sua máquina
+conectava via Masquerading.
+
+
+Para fazer o IP Masquerading de todas as máquinas da rede 192.168.1.*:
+
+<screen>
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -o ppp0 -j MASQUERADE
+
+
+Após definir a regra para fazer Masquerading (SNAT), execute o comando
+<literal>echo "1" &gt;/proc/sys/net/ipv4/ip_forward para habilitar o
+suporte a redirecionamento de pacotes no kernel.
+
+
+
+
+
+ fw-iptables-nat-dnat">###Fazendo DNAT
+
+DNAT (Destination nat - nat no endereço de destino) consiste em modificar o
+endereço de destino das máquinas clientes.  O destination nat é muito usado
+para fazer redirecionamento de pacotes, proxyes transparentes e balanceamento
+de carga.
+
+
+Toda operação de DNAT é feita no chain **PREROUTING**.  As
+demais opções e observações do SNAT são também válidas para DNAT (com exceção
+que somente é permitido especificar a interface de origem no chain PREROUTING).
+
+<screen>
+# Modifica o endereço IP destino dos pacotes de 200.200.217.40 vindo da interface eth0
+# para 192.168.1.2. 
+iptables -t nat -A PREROUTING -s 200.200.217.40 -i eth0 -j DNAT --to 192.168.1.2
+
+
+Também é possível especificar faixas de endereços e portas que serão
+substituídas no DNAT:
+
+<screen>
+iptables -t nat -A PREROUTING -i eth0 -s 192.168.1.0/24 -j DNAT --to 200.200.217.40-200.200.217.50
+
+
+Modifica o endereço IP de destino do tráfego vindos da interface 192.168.1.0/24
+para um IP de 200.241.200.40 a 200.241.200.50.  Este é um excelente método para
+fazer o balanceamento de carga entre servidores.  O endereço IP selecionado é
+escolhido de acordo com o último IP alocado.
+
+<screen>
+iptables -t nat -A PREROUTING -i eth0 -s 192.168.1.0/24 -j DNAT --to 200.200.217.40-200.200.217.50:1024:5000
+
+
+Idêntico ao anterior, mas faz somente substituições na faixa de portas de
+destino de 1024 a 5000.  A operação acima é a mesma realizada pelo
+<command>ipmasqadm dos kernels da série 2.2.
+
+
+**OBS1:** Se por algum motivo não for possível
+mapear uma conexão NAT, ela será derrubada.
+
+
+**OBS2:** Não se esqueça de conferir se o
+<filename>ip_forward</filename> está ajustado para <literal>1:
+<literal>echo "1" &gt;/proc/sys/net/ipv4/ip_forward.
+
+ fw-iptables-nat-dnat-redir">###Redirecionamento de portas
+
+O redirecionamento de portas permite a você repassar conexões com destino a uma
+porta para outra porta na mesma máquina.  O alvo **REDIRECT**
+é usado para fazer esta operação, junto com o argumento
+**--to-port** especificando a porta que será redirecionada.
+Este é o método DNAT específico para se para fazer proxy transparente (para
+redirecionamento de endereços/portas, veja <xref linkend="fw-iptables-nat-dnat"/>).  Todas as operações de redirecionamento de
+portas é realizada no chain **PREROUTING** e
+**OUTPUT** da tabela **nat**.
+
+<screen>
+iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 81
+
+
+Redireciona as conexões indo para a porta 80 para a porta 81 (rodando
+<command>squid) no firewall.
+
+
+**ATENÇÃO:** O <command>squid possui
+suporte a proxy transparente, e poderá atender as requisições acima da regra
+acima.
+
+
+
+
+
+ fw-iptables-nat-monitorando">###Monitorando conexões feitas na tabela nat
+
+Use o comando <literal>cat /proc/net/ip_conntrack para listar todas
+as conexões atuais tratadas pelo módulo nat.
+
+
+
+
+
+ fw-iptables-mangle">###A tabela mangle
+
+A tabela **mangle** serve para especificar ações especiais
+para o tratamento do tráfego que atravessa os chains.  Nesta tabela existem
+cincos chains: **PREROUTING**,
+**POSTROUTING**, **INPUT**,
+**OUTPUT** e **FORWARD** (veja <xref linkend="fw-iptables-tabelas"para maiores detalhes).
+
+
+Em geral, cada um deste chain é processado antes do chain correspondente na
+tabela **filter** e **nat** para definir
+opções especiais para o tráfego (por exemplo, o chain
+**PREROUTING** da tabela **mangle** é
+processado antes do **PREROUTING** da tabela
+**nat**).  O chain **OUTPUT** da tablea
+**mangle** corresponde ao **OUTPUT** da
+tabela **nat**.  Opções como o **Tipo de Serviço
+(TOS)** é especificado nesta tabela para classificar e aumentar
+consideravelmente a velocidade de tráfego considerados em tempo real.  Mesmo
+após o tráfego ser estabelecido, os chains da tabela mangle continuam ativos
+para garantir que as opções especiais relacionadas com a conexão continuem
+fazendo efeito (veja os exemplos de <xref linkend="fw-iptables-path"/>).
+
+ fw-iptables-mangle-TOS">###Especificando o tipo de serviço
+
+O tipo de serviço é um campo existente no cabeçalho de pacotes do protocolo
+ipv4 que tem a função especificar qual é a prioridade daquele pacote.  A
+prioridade é definida usando o algoritmo FIFO do próprio kernel, sendo uma das
+alternativas de controle/priorização de tráfego das mais simples e rápidas.
+
+
+Uma das vantagens da utilização do tipo de serviço é dar prioridade ao tráfego
+de pacotes interativos (como os do ICQ, IRC, servidores de chat), etc.  Com o
+TOS especificado, mesmo que esteja fazendo um download consumindo toda a banda
+de sua interface de rede, o tráfego com prioridade interativa será enviado
+antes, aumentando a eficiência do uso de serviços em sua máquina.
+
+
+Em testes realizados em minha conexão de 56K, o uso de regras TOS aumentou
+bastante o desempenho em tráfego interativo (em torno de 300%), durante o uso
+total da banda da interface ppp em grande consumo de banda.
+
+
+Usamos o alvo TOS (-j TOS) para especificar a modificação do tipo de serviço
+nos pacotes que atravessam as regras do firewall, acompanhada do argumento
+**--set-tos TOS** que define a nova prioridade dos pacotes.
+Os valores aceitos são os seguintes:
+
+<variablelist>
+<varlistentry>
+<term>Espera Mínima
+<listitem>
+
+É especificado através de **Minimize-Delay**,
+**16** ou **0x10**
+
+
+
+<varlistentry>
+<term>Máximo Processamento
+<listitem>
+
+É especificado através de **Maximize-Throughput**,
+**8,** ou **0x08**.
+
+
+
+<varlistentry>
+<term>Máxima Confiança
+<listitem>
+
+É especificado através de **Maximize-Reliability**,
+**4** ou **0x04**.
+
+
+
+<varlistentry>
+<term>Custo mínimo
+<listitem>
+
+Especificado através de **Minimize-Cost**,
+**2** ou **0x02**.
+
+
+
+<varlistentry>
+<term>Prioridade Normal
+<listitem>
+
+Especificado através de **Normal-Service**,
+**0** ou **0x00**.
+
+
+
+</variablelist>
+
+Os pacotes vem por padrão com o valor TOS ajustado como **prioridade
+normal** (bits tos ajustados para 0x00).  O tipo **Mínima
+Espera** é o de maior prioridade, recomendado para tráfego interativo.
+
+ fw-iptables-mangle-TOS-out">###Especificando o TOS para tráfego de saída
+
+Este é o mais usado, pois prioriza o tráfego que sai da máquina (com destino a
+Internet, por exemplo).  Sua operação é realizada através do chain
+**OUTPUT** ou **POSTROUTING**.
+
+
+Para priorizar todo o tráfego de IRC de nossa rede interna indo para a
+interface ppp0:
+
+<screen>
+iptables -t mangle -A OUTPUT -o ppp0 -p tcp --dport 6666-6668 -j TOS --set-tos 16
+
+
+O bit TOS é ajustado para **Espera mínima** e será enviado
+antes dos pacotes com prioridade normal para fora.  Para priorizar a
+transmissão de dados ftp saindo da rede:
+
+<screen>
+iptables -t mangle -A OUTPUT -o ppp0 -p tcp --dport 20 -j TOS --set-tos 8
+
+
+Para priorizar o tráfego de ICQ da rede:
+
+<screen>
+iptables -t mangle -A OUTPUT -o ppp0 -p tcp --dport 5190 -j TOS --set-tos 16
+
+
+Existem muitas outras otimizações que podem ser feitas, só depende dos
+requerimentos e análise de cada serviço da rede pelo administrador.
+
+
+**OBS:** - Os pacotes que atravessam o alvo TOS
+somente tem os bits tipo do serviço modificados, eles não serão de qualquer
+forma rejeitados.
+
+
+
+ fw-iptables-mangle-TOS-in">###Especificando o TOS para o tráfego de entrada
+
+Este prioriza o tráfego que entra da máquina.  Sua operação é realizada no
+chain **INPUT** ou **PREROUTING**.  Não faz
+muito sentido o uso deste chain dentro de uma rede pequena/média, pois o
+tráfego que recebermos será priorizado pelo chain de saída de outras máquinas
+da internet/outras redes antes de chegar a nossa (desde que elas também estejam
+usando TOS).
+
+
+Para priorizar o processamento do tráfego interativo vindo de servidores IRC
+para nossa rede:
+
+<screen>
+iptables -t mangle -A PREROUTING -i eth0 -p tcp --sport 6666-6668 -j TOS --set-tos 0x10
+
+
+Modifica o tipo de serviço para **mínima espera** de todo o
+tráfego enviado por servidores de IRC vindo da interface eth0.
+
+
+**OBS:** - Os pacotes que atravessam o alvo TOS
+somente tem os bits tipo do serviço modificados, eles não serão de qualquer
+forma rejeitados.  \
+
+
+
+
+
+
+
+ fw-iptables-mod">###Outros módulos do iptables
+
+Os módulos do iptables são especificados com a opção **-m
+módulo** ou **--match módulo** e permitem expandir a
+funcionalidade do firewall através de novas conferências e recursos de
+filtragem adicionais, como limitar a conferência de regras do firewall (um
+método útil de limitar ping floods, syn floods, etc).
+
+ fw-iptables-mod-state">###Conferindo de acordo com o estado da conexão
+
+Este módulo permite especificar regras de acordo com o estado da conexão do
+pacote, isto é feito através da interpretação da saída do módulo
+<filename>ip_conntrack</filename>.  O parâmetro **--state
+OPÇÕES** deve acompanhar este módulo.  As opções permitidas são as
+seguintes:
+
+<itemizedlist>
+<listitem>
+
+<literal>NEW - Confere com pacotes que criam novas conexões
+
+
+<listitem>
+
+<literal>ESTABLISHED - Confere com conexões já estabelecidas
+
+
+<listitem>
+
+<literal>RELATED - Confere com pacotes relacionados indiretamente a
+uma conexão, como mensagens de erro icmp, etc.
+
+
+<listitem>
+
+<literal>INVALID - Confere com pacotes que não puderam ser
+identificados por algum motivo.  Como respostas de conexões desconhecidas.
+
+
+
+
+Caso seja necessário especificar mais de uma opções estas devem ser separadas
+por vírgulas.
+
+<screen>
+iptables -A INPUT -m state --state NEW -i ppp0 -j DROP
+
+
+Bloqueia qualquer tentativa de nova conexão vindo da interface ppp0.
+
+<screen>
+iptables -A INPUT -m state --state NEW,INVALID -i ppp0 -j LOG
+
+
+Permite registrar novas conexões e pacotes inválidos vindos da interface ppp0.
+
+
+
+ fw-iptables-mod-limit">###Limitando o número de vezes que a regra confere
+
+A opção **-m limit** permite especificar o número de vezes que
+uma regra conferirá quando todas as outras condições forem satisfeitas.  O
+número padrão de conferência é de 3 por hora, a não ser que seja modificado
+através dos argumentos aceitos pelo **limit**:
+
+<itemizedlist>
+<listitem>
+
+<literal>--limit num/tempo - Permite especificar a taxa de
+conferências do limit.  O parâmetro **num** especifica um
+número e **tempo** pode ser
+
+<itemizedlist>
+<listitem>
+
+<literal>s - Segundo
+
+
+<listitem>
+
+<literal>m - Minuto
+
+
+<listitem>
+
+<literal>h - Hora
+
+
+<listitem>
+
+<literal>d - Dia
+
+
+
+
+Assim uma regra como <literal>iptables -A INPUT -m limit --limit 5/m -j
+ACCEPT permitirá que a regra acima confira apenas 5 vezes por minuto
+(**--limit 2/s**).  Este limite pode ser facilmente adaptado
+para uma regra de log que confere constantemente não causar uma avalanche em
+seus logs.  O valor padrão é 3/h.
+
+
+<listitem>
+
+<literal>--limit-burst num - Especifica o número inicial máximo de
+pacotes que irão conferir, este número é aumentado por 1 a cada vez que o
+parâmetro **--limit** acima não for atingido.  O valor padrão
+é 5.
+
+
+
+
+
+ fw-iptables-mod-limit-ping">###Proteção contra ping da morte
+
+A regra abaixo pode tomada como base para proteção contra ping flood:
+
+<screen>
+iptables -t filter -A ping-chain -p icmp --icmp-type echo-request -m limit --limit 1/s -j ACCEPT
+iptables -t filter -A ping-chain -j DROP
+
+
+A regra acima limita em 1 vez por segundo (--limit 1/s) a passagem de pings
+(echo requests) para a máquina <command>Linux.
+
+<screen>
+iptables -t filter -A ping-chain -i ppp0 -p icmp --icmp-type echo-reply -m limit --limit 1/s -j RETURN
+iptables -t filter -A ping-chain -j DROP
+
+
+Limita respostas a pings (echo reply) vindos da interface ppp0 (-i ppp0) a 1
+por segundo.
+
+
+**ATENÇÃO:** O exemplo acima é somente para a
+criação de suas próprias regras com limitações, caso um pacote não confira ele
+será bloqueado pela próxima regra.  Se uma regra como esta for colocada no
+chain INPUT sem modificações, ela não terá o efeito desejado, podendo colocar
+em risco a sua instalação pela falsa impressão de segurança.  Portanto, é
+recomendável sempre testar as modificações para ter certeza que elas tem
+efeito.
+
+
+
+ fw-iptables-mod-limit-synflood">###Proteção contra syn flood
+
+A regra abaixo é uma boa proteção para os ataques syn floods:
+
+<screen>
+iptables -t filter -A syn-chain -p tcp --syn -m limit --limit 2/s -j ACCEPT
+iptables -t filter -A syn-chain -j DROP
+
+
+Esta regra limita o atendimento de requisições de conexões a 2 por segundo.
+Outra forma de aumentar a segurança contra syn-floods é através do próprio
+kernel ativando a opção "TCP Synflood" na compilação e depois executando:
+<literal>echo "1" &gt;/proc/sys/net/ipv4/tcp_synflood.  No entanto,
+utilize estas opções com cautela em servidores que possuem um grande número de
+acessos para não ter problemas que afetem seu clientes.
+
+
+**ATENÇÃO:** Os exemplos acima devem são somente
+exemplos para criação de suas próprias regras com limitações, caso um pacote
+não confira com a regra ele será bloqueado pela próxima regra.  Se uma regra
+como esta for colocada no chain INPUT sem modificações, ela não terá o efeito
+desejado, podendo colocar em risco a sua instalação pela falsa impressão de
+segurança.  Portanto, é recomendável sempre testar as modificações para ter
+certeza que elas tem efeito.
+
+
+
+ fw-iptables-outras-ipspoof">###Proteção contra IP spoofing
+
+A especificação de endereços de origem/destino junto com a interface de rede
+pode ser usado como um detector de ataques spoofing.  A lógica é que todos os
+endereços que NUNCA devem vir da interface X devem ser negados imediatamente.
+As regras abaixo são colocadas no inicio do chain INPUT para detectar tais
+ataques:
+
+<screen>
+iptables -A INPUT -s 192.168.1.0/24 -i ! eth0 -j DROP
+iptables -A INPUT ! -s 192.168.1.0/24 -i eth0 -j DROP
+
+
+A primeira regra diz para bloquear todos os endereços da faixa de rede
+192.168.1.* que NÃO vem da interface eth0, a segunda regra diz para bloquear
+todos os endereços que não sejam 192.168.1.* vindos da interface eth0.  O
+símbolo "!"  serve para especificar exceções (veja <xref linkend="fw-iptables-outras-excessoes"/>.  O kernel do <command>Linux
+automaticamente bloqueia a passagem de pacotes que dizem ser de 127.0.0.1 e não
+está vindo da interface loopback.
+
+
+O método preferido para controlar o ip spoofing é através do código de
+roteamento do kernel (a não ser que esteja usando algum tipo de roteamento de
+origem assimétrico necessário por alguns programas especiais):
+
+<screen>
+for i in /proc/sys/net/ipv4/conf/*/rp_filter; do
+ echo 1 &gt;$i
+done
+
+
+Desta forma qualquer endereço dizendo ser 192.168.1.5 vindo de
+<filename>ppp0</filename> será imediatamente rejeitado.  Uma checagem adicional
+contra IP spoofing pode ser feita no arquivo
+<filename>/etc/host.conf</filename> (veja <xref linkend="rede-dns-a-hostconf"/>).
+
+
+
+ fw-iptables-mod-multiport">###Especificando múltiplas portas de origem/destino
+
+O módulo <filename>multiport</filename> permite que seja especificado múltiplas
+portas para um alvo.  Podem ser especificadas até 15 portas em um único
+parâmetro e basta que uma porta confira para que a regra entre em ação, pois a
+comparação é feita usando condições "or".  O parâmetro
+<filename>multiport</filename> deve ser acompanhado de um dos argumentos
+abaixo:
+
+<itemizedlist>
+<listitem>
+
+<literal>--source-port [porta1, porta2...] - Faz a regra conferir se
+a porta de origem estiver presente entre as portas especificadas.
+
+
+<listitem>
+
+<literal>--destination-port [porta1, porta2...] - Faz a regra
+conferir se a porta de destino estiver presente entre as portas especificadas.
+
+
+<listitem>
+
+<literal>--port [porta1, porta2...] - Faz a regra conferir caso a
+porta de origem ou destino esteja presente no parâmetro.
+
+
+
+
+Este módulo pode eliminar muitas regras de firewall que fazem o mesmo
+tratamento de pacotes para diversas portas diferentes.
+
+<screen>
+iptables -A INPUT -p tcp -i ppp0 -m multiport --destination-port 21,23,25,80,110,113,6667 -j DROP
+
+
+Bloqueia todos os pacotes vindo de ppp0 para as portas 21 (ftp), 23 (telnet),
+25 (smtp), 80 (www), 110 (pop3), 113 (ident), 6667 (irc).
+
+
+
+ fw-iptables-mod-mac">###Especificando o endereço MAC da interface
+
+O módulo <filename>mac</filename> serve para conferir com o endereço Ethernet
+dos pacotes de origem.  Somente faz sentido se usado nos chains de PREROUTING
+(da tabela nat) ou INPUT (da tabela filter).  Aceita como argumento a opção
+**--mac-source endereço**.  O símbolo "!"  pode ser usado para
+especificar uma exceção.
+
+<screen>
+iptables -t filter -A INPUT -m mac --mac-source 00:80:AD:B2:60:0B -j DROP
+
+
+Confere com a máquina com endereço ethernet igual a
+<literal>00:80:AD:B2:60:0B.
+
+
+
+ fw-iptables-mod-owner">###Conferindo com quem criou o pacote
+
+Este módulo confere com o usuário que iniciou a conexão.  É somente válido no
+chain **OUTPUT** da tabela filter.  Os seguintes argumentos
+são válidas para este módulo:
+
+<itemizedlist>
+<listitem>
+
+<literal>--uid-owner UID - Confere se o pacote foi criado por um
+processo com o UID especificado.  Até o momento somente UID numéricos são
+aceitos.
+
+
+<listitem>
+
+<literal>--gid-owner GID - Confere se o pacote foi criado por um
+usuário pertencente ao grupo GID.  Até o momento somente GID numéricos são
+aceitos.
+
+
+<listitem>
+
+<literal>--pid-owner PID - Confere se o pacote foi criado por um
+processo com o PID especificado.
+
+
+<listitem>
+
+<literal>--sid-owner ID - Confere se o pacote foi criado por um
+processo no grupo de seção especificado.
+
+
+
+
+**OBS:** - Lembre-se que pacotes que não possuem
+detalhes suficientes de cabeçalho nunca conferirão!
+
+<screen>
+iptables -A OUTPUT -m owner --gid-owner 100 -p udp -j DROP
+
+
+Rejeita um conexões indo para portas UDP de pacotes criados pelo usuários
+pertencentes ao grupo 100.
+
+
+
+ fw-iptables-mod-string">###Conferindo com o conteúdo do pacote
+
+O módulo <filename>string</filename> do <command>iptables permite a
+inspeção de conteúdo de um pacote e tomar uma ação se determinado tipo de
+tráfego for encontrado em um pacote.  Esta técnica pode ser usada tanto para
+segurança como para economia de banda dentro da rede.  Esta opção *NÃO* torna o
+iptables como um firewall proxy, pois o proxy tem a habilidade de inspecionar o
+conteúdo, protocolo, comandos do pacote e decidir se o seu conteúdo é nocivo ou
+não.  O firewall em nível de pacotes fazendo inspeção de conteúdo, chega a ser
+3 a 10 vezes mais rápido do que um proxy, assim seu uso deve ser analisado
+dependendo do tráfego que circula pelo link e da segurança dos dados que
+trafegam através dele.
+
+
+Uma boa prática é aliar esta opção a um IDS externo usando o alvo
+**QUEUE** e deixando o trabalho de espeção de conteúdo para
+ele.  Um exemplo de restrição direta é o bloqueio do envio de qualquer
+informação confidencial sigilosa para fora da rede interna (número de contas,
+tudo que conferir com CPF, CGC, endereços de e-mail, memorandos, etc).  De
+qualquer forma, analise o tráfego de sua rede antes de querer implementar
+qualquer solução baseada neste método sob o risco de afetar tráfego legítimo.
+
+
+Outra utilidade eficiente é a diminuição de tráfego, pois podemos barrar
+programas que sobrecarregam o link em uma rede com muitos usuários como, por
+exemplo, usando o <command>Kazaa ou qualquer outro programa para
+cópia de arquivos via Internet.  Veja alguns exemplos:
+
+<screen>
+# Bloqueia qualquer tentativa de acesso ao programa Kazaa
+iptables -A INPUT -m string --string "X-Kazaa" -j DROP
+
+# Não permite que dados confidenciais sejam enviados para fora da empresa
+# e registra o ocorrido.
+iptables -A OUTPUT -m string --string "conta" -j LOG --log-prefix "ALERTA: dados confidencial "
+iptables -A OUTPUT -m string --string "conta" -j DROP
+
+# Somente permite a passagem de pacotes que não contém ".exe" em seu conteúdo
+iptables -A INPUT -m string --string ! ".exe" -j ACCEPT
+
+
+
+ fw-iptables-mod-ttl">###Conferindo com o tempo de vida do pacote
+
+O módulo <filename>ttl</filename> pode ser usado junto com as seguintes opções
+para conferir com o tempo de vida (TTL) de um pacote:
+
+<itemizedlist>
+<listitem>
+
+<literal>--ttl-eq [num]
+
+
+<listitem>
+
+<literal>--ttl-lt [num]
+
+
+<listitem>
+
+<literal>--ttl-gq [num]
+
+
+
+
+Veja alguns exemplos:
+
+<screen>
+# Confere com todos os pacotes que tem o TTL maior que 100
+iptables -A INPUT -m ttl --ttl-gt 100 -j LOG --log-prefix "TTL alto"
+
+# Confere com todos os pacotes que tem o TTL igual a 1
+iptables -A INPUT -m ttl --ttl-eq 1 -j DROP
+
+
+**OBS:** Tenha um especial cuidado durante a
+programação de regras que usem TTL, como elas estão especialmente associadas
+com o estado da comunicação estabelecida entre as duas pontas e o tipo de
+protocolo, cuidados especiais devem ser tomados para que seu firewall não
+manipule de forma incorreta tráfego válido.
+
+
+
+ fw-iptables-mod-rpc">###Conferindo com números RPC
+
+O módulo <filename>rpc</filename> permite um controle especial sobre o tráfego
+RPC que chega até a sua máquina.  Um uso útil é restringir a chamada a
+determinados números RPC e permitir outros (por exemplo, permitindo somente o
+serviço **keyserv** e bloqueando outros como o
+**ypserv** ou **portmapper**).  As seguintes
+opções podem ser usadas com o módulo <filename>nfs</filename>:
+
+<itemizedlist>
+<listitem>
+
+<literal>--rpcs [procedimentos] - Confere com a lista de chamadas RPC
+especificadas.  Mais de um procedimento RPC pode ser especificado como
+<literal>nome ou <literal>número separando-os com vírgulas.
+Um arquivo útil que contém esta lista é o <filename>/etc/rpc</filename>.
+
+
+<listitem>
+
+<literal>--strict - Ignora serviços RPC que não contenham a chamada
+**get** do portmapper.  Em situações normais, o inicio de
+qualquer solicitação RPC.
+
+
+
+
+Veja alguns exemplos:
+
+<screen>
+# Para conferir com todas as chamadas RPC referentes a conexões iniciadas
+# para o portmapper
+iptables -A INPUT -m rpc --rpcs portmapper --strict -j DROP
+
+# Para permitir que somente as chamadas para status e statmon sejam
+# aceitas
+iptables -A INPUT -m rpc --rpcs 100023,100024 -j ACCEPT
+
+
+
+ fw-iptables-mod-pkttype">###Conferindo com tipo de pacote
+
+O módulo <filename>pkttype</filename> permite identificar um pacote do tipo
+**unicast** (direcionado a você),
+**broadcast** (direcionado a uma determinada rede, definida
+pela netmask) ou **multicast** (destinado a grupos de redes) e
+desta forma realizar ações em cima destes.  O tipo de pacote é identificado
+logo após a opção **--pkt-type**.  Veja alguns exemplos:
+
+<screen>
+# Bloqueia a passagem de pacotes multicast de uma rede para outra
+iptables -A FORWARD -i eth0 -o eth0 -m pkttype --pkt-type multicast -j DROP 
+
+# Como deve ter notado, é possível fazer a associação com diversas especificações
+# de módulos, bastando apenas especificar uma opção "-m" para cada módulo
+# adicional:
+# Permite a passagem de pacotes broadcast de uma rede para outra com
+# limitação de 5/s.
+iptables -A FORWARD -i eth0 -o eth0 -m pkttype --pkt-type broadcast -m limit --limit 5/s -j ACCEPT
+
+
+
+ fw-iptables-mod-length">###Conferindo com o tamanho do pacote
+
+O tamanho do pacote pode ser usado como condição de filtragem através do módulo
+<filename>length</filename>.  O tamanho do pacote é especificado através da
+opção **--length** e o argumento segue a mesma sintaxe da
+especificação de portas no <command>iptables sendo separados por
+**:**.  Veja alguns exemplos:
+
+<screen>
+# Bloqueia qualquer pacote ICMP maior que 30Kb
+iptables -A INPUT -i eth0 -m length --length 30000: -j DROP
+
+# Bloqueia qualquer pacote com o tamanho entre 20 e 2000 bytes
+iptables -A INPUT -i eth0 -m length --length 20:2000 -j DROP
+
+
+
+
+
+ fw-iptables-path">###Caminho percorrido pelos pacotes nas tabelas e chains
+
+É MUITO importante entender a função de cada filtro e a ordem de acesso dos
+chains de acordo com o tipo de conexão e interface de origem/destino.  Esta
+seção explica a ordem que as regra são atravessadas, isso lhe permitirá
+planejar a distribuição das regras nos chains, e evitar erros de localização de
+regras que poderia deixar seu firewall com sérios problemas de segurança, ou um
+sistema de firewall totalmente confuso e sem lógica.
+
+
+Nos exemplos abaixo assumirei a seguinte configuração:
+
+<itemizedlist>
+<listitem>
+
+A máquina do firewall com <command>iptables possui o endereço IP
+<filename>192.168.1.1</filename> e conecta a rede interna ligada via interface
+<filename>eth0</filename> a internet via a interface <filename>ppp0</filename>.
+
+
+<listitem>
+
+Rede interna com a faixa de endereços <filename>192.168.1.0</filename>
+conectada ao firewall via interface <filename>eth0</filename>
+
+
+<listitem>
+
+Interface <filename>ppp0</filename> fazendo conexão com a Internet com o
+endereço IP <filename>200.217.29.67</filename>.
+
+
+<listitem>
+
+A conexão das máquinas da rede interna (<filename>eth0</filename>) com a rede
+externa (<filename>ppp0</filename>) é feita via
+**Masquerading**.
+
+
+
+
+Também utilizarei a sintaxe **CHAIN-tabela** para fazer
+referência aos chains e tabelas dos blocos ASCII:
+**INPUT-filter** - chain **INPUT** da tabela
+**filter**.
+
+
+**ATENÇÃO:** A ordem de processamento das regras
+do <command>iptables, é diferente do <command>ipchains
+devido a inclusão do novo sistema de nat e da tabela mangle.
+
+ fw-iptables-path-PingICMPLocal-Local">###Ping de 192.168.1.1 para 192.168.1.1
+<itemizedlist>
+<listitem>
+
+Endereço de Origem: <literal>192.168.1.1
+
+
+<listitem>
+
+Endereço de Destino: <literal>192.168.1.1
+
+
+<listitem>
+
+Interface de Entrada: <literal>lo
+
+
+<listitem>
+
+Interface de Saída: <literal>lo
+
+
+<listitem>
+
+Protocolo: <literal>ICMP
+
+
+<listitem>
+
+Descrição: <literal>Ping para o próprio firewall
+
+
+
+<screen>
+SAÍDA DE PACOTES (envio do ping para 192.168.1.1): 
++-------------+    +----------+    +-------------+   +------------------+  +----------------+
+|OUTPUT-mangle| =&gt; |OUTPUT-nat| =&gt; |OUTPUT-filter| =&gt;|POSTROUTING-mangle|=&gt;|POSTROUTING-nat |
++-------------+    +----------+    +-------------+   +------------------+  +----------------+
+
+ENTRADA DOS PACOTES (Retorno da resposta ping acima): 
++-----------------+   +------------+  +------------+
+|PREROUTING-mangle| =&gt;|INPUT-mangle|=&gt;|INPUT-filter|
++-----------------+   +------------+  +------------+
+
+
+Quando damos o ping (**echo request**) os pacotes seguem o
+caminho em **SAÍDA DE PACOTES** percorrendo os chains na ordem
+especificada e retornam via **ENTRADA DOS PACOTES**
+(**echo reply**).  No envio da resposta da requisição de ping,
+o caminho de saída do pacote ignora os chains OUTPUT-nat e POSTROUTING-nat (já
+que não é necessário nat) mas sempre processa os chains correspondentes da
+tabela mangle na ordem indicada acima.
+
+
+**OBS1:** Para conexões com destinos na própria
+máquina usando um endereço IP das interfaces locais, a interface será ajustada
+sempre para <filename>lo</filename> (loopback).
+
+
+**OBS2:** Em qualquer operação de entrada/saída
+de pacotes, os dois chains da tabela **mangle** são sempre os
+primeiros a serem acessados.  Isto é necessário para definir a prioridade e
+controlar outros aspectos especiais dos pacotes que atravessam os filtros.
+
+
+**OBS3:** O chain **OUTPUT** da
+tabela **filter** é consultado sempre quando existem conexões
+se originando em endereços de interfaces locais.
+
+
+
+ fw-iptables-path-FtpTCPLocal-Local">###Conexão FTP de 192.168.1.1 para 192.168.1.1
+<itemizedlist>
+<listitem>
+
+Endereço de Origem: <literal>192.168.1.1
+
+
+<listitem>
+
+Endereço de Destino: <literal>192.168.1.1
+
+
+<listitem>
+
+Interface de Origem: <literal>lo
+
+
+<listitem>
+
+Interface de Destino: <literal>lo
+
+
+<listitem>
+
+Porta Origem: <literal>1404
+
+
+<listitem>
+
+Porta Destino: <literal>21
+
+
+<listitem>
+
+Protocolo: <literal>TCP
+
+
+<listitem>
+
+Descrição: <literal>Conexão ftp (até o prompt de login, sem transferência de
+arquivos).
+
+
+
+<screen>
+SAÍDA DOS PACOTES (envio da requisição para 192.168.1.1): 
++-------------+    +----------+    +-------------+    +------------------+    +---------------+
+|OUTPUT-mangle| =&gt; |OUTPUT-nat| =&gt; |OUTPUT-filter| =&gt; +POSTROUTING-mangle| =&gt; |POSTROUTING-nat|
++-------------+    +----------+    +-------------+    +------------------+    +---------------+
+
+ENTRADA DE PACOTES (respostas da requisição vindas de 192.168.1.1): 
++-----------------+    +------------+    +------------+
+|PREROUTING-mangle| =&gt; |INPUT-mangle| =&gt; |INPUT-filter|
++-----------------+    +------------+    +------------+
+
+
+A requisição ftp passa através dos chains especificados em **SAÍDA DOS
+PACOTES** e retorna por **ENTRADA DE PACOTES**.  Após
+a conexão ser estabelecida, o caminho de **SAÍDA DE PACOTES**
+será:
+
+<screen>
++-------------+    +-------------+    +------------------+
+|OUTPUT-mangle| =&gt; |OUTPUT-filter| =&gt; |POSTROUTING-mangle|
++-------------+    +-------------+    +------------------+
+
+
+pois os dados de entrada que vem da interface externa, são passados diretamente
+a máquina do firewall, não necessitando de tratamento SNAT (os chains
+**OUTPUT-nat** e **POSTROUTING-nat** são
+processado somente uma vez a procura de regras que conferem, principalmente
+para fazer SNAT).  Note novamente que mesmo não sendo necessário NAT, o chain
+POSTROUTING-mangle é checado.
+
+
+**OBS1:** Para conexões com destinos na própria
+máquina usando um endereço IP das interfaces locais, a interface será ajustada
+sempre para <filename>lo</filename> (loopback).
+
+
+**OBS2:** Em qualquer operação de entrada/saída
+de pacotes, os dois chains da tabela mangle são sempre os primeiros a serem
+acessados.  Isto é necessário para definir a prioridade e controlar outros
+aspectos especiais dos pacotes que atravessam os filtros.
+
+
+
+ fw-iptables-path-FtpTCPLocal-LocalNet">###Conexão FTP de 192.168.1.1 para 192.168.1.4
+<itemizedlist>
+<listitem>
+
+Endereço de Origem: <literal>192.168.1.1
+
+
+<listitem>
+
+Endereço de Destino: <literal>192.168.1.4
+
+
+<listitem>
+
+Interface de Origem: <literal>eth0
+
+
+<listitem>
+
+Interface de Destino: <literal>eth0
+
+
+<listitem>
+
+Porta Origem: <literal>1405
+
+
+<listitem>
+
+Porta Destino: <literal>21
+
+
+<listitem>
+
+Protocolo: <literal>TCP
+
+
+<listitem>
+
+Descrição: <literal>Conexão ftp (até o prompt de login, sem transferência de
+arquivos).
+
+
+
+<screen>
+SAÍDA DOS PACOTES (envio da requisição para 192.168.1.4): 
++-------------+    +----------+    +-------------+    +------------------+    +---------------+
+|OUTPUT-mangle| =&gt; |OUTPUT-nat| =&gt; |OUTPUT-filter| =&gt; +POSTROUTING-mangle| =&gt; |POSTROUTING-nat|
++-------------+    +----------+    +-------------+    +------------------+    +---------------+
+
+ENTRADA DE PACOTES (respostas da requisição de 192.168.1.4): 
++-----------------+    +------------+    +------------+
+|PREROUTING-mangle| =&gt; |INPUT-mangle| =&gt; |INPUT-filter|
++-----------------+    +------------+    +------------+
+
+
+A requisição ftp passa através dos chains especificados em **SAÍDA DOS
+PACOTES** com o destino <filename>192.168.1.4</filename> porta
+<filename>21</filename> e retorna por **ENTRADA DE PACOTES**
+para <filename>192.168.1.1</filename> porta <filename>1405</filename>.  Após a
+conexão ser estabelecida, o caminho de **SAÍDA DE PACOTES**
+será:
+
+<screen>
++-------------+    +-------------+    +------------------+
+|OUTPUT-mangle| =&gt; |OUTPUT-filter| =&gt; |POSTROUTING-mangle|
++-------------+    +-------------+    +------------------+
+
+
+pois os dados não precisam de tratamento SNAT (os chains
+**OUTPUT-nat** e **POSTROUTING-nat** são
+processado somente uma vez a procura de regras que conferem, principalmente
+para fazer SNAT).
+
+
+**OBS:** Em qualquer operação de entrada/saída
+de pacotes, os dois chains da tabela mangle são sempre os primeiros a serem
+acessados.  Isto é necessário para definir a prioridade e controlar outros
+aspectos especiais dos pacotes que atravessam os filtros.
+
+
+
+ fw-iptables-path-FtpTCPLocal-RemoteNet">###Conexão FTP de 200.217.29.67 para a máquina ftp.debian.org.br
+<itemizedlist>
+<listitem>
+
+Endereço de Origem: <literal>200.217.29.67
+
+
+<listitem>
+
+Endereço de Destino: <literal>200.198.129.162
+
+
+<listitem>
+
+Interface de Origem: <literal>ppp0
+
+
+<listitem>
+
+Interface de Destino: <literal>ppp0
+
+
+<listitem>
+
+Porta Origem: <literal>1407
+
+
+<listitem>
+
+Porta Destino: <literal>21
+
+
+<listitem>
+
+Protocolo: <literal>TCP
+
+
+<listitem>
+
+Descrição: <literal>Conexão ftp (até o prompt de login, sem transferência de
+arquivos).
+
+
+
+<screen>
+SAÍDA DOS PACOTES (envio da requisição para 200.198.129.162): 
++-------------+    +----------+    +-------------+    +------------------+    +---------------+
+|OUTPUT-mangle| =&gt; |OUTPUT-nat| =&gt; |OUTPUT-filter| =&gt; +POSTROUTING-mangle| =&gt; |POSTROUTING-nat|
++-------------+    +----------+    +-------------+    +------------------+    +---------------+
+
+ENTRADA DE PACOTES (respostas da requisição vindas de 200.198.129.162): 
++-----------------+    +------------+    +------------+
+|PREROUTING-mangle| =&gt; |INPUT-mangle| =&gt; |INPUT-filter|
++-----------------+    +------------+    +------------+
+
+
+A requisição ftp passa através dos chains especificados em **SAÍDA DOS
+PACOTES** com o destino <filename>200.198.129.162</filename> porta
+<filename>21</filename> (após a resolução DNS de
+<filename>www.debian.org.br</filename>) e retorna por **ENTRADA DE
+PACOTES** para <filename>200.217.29.67</filename> porta
+<filename>1407</filename>.  Após a conexão ser estabelecida, o caminho de saída
+de pacotes é:
+
+<screen>
++-------------+    +-------------+    +------------------+
+|OUTPUT-mangle| =&gt; |OUTPUT-filter| =&gt; |POSTROUTING-mangle|
++-------------+    +-------------+    +------------------+
+
+
+pois os dados não precisam de tratamento SNAT (os chains
+**OUTPUT-nat** e **POSTROUTING-nat** são
+processado somente uma vez a procura de regras que conferem, principalmente
+para fazer SNAT).
+
+
+E após a conexão estabelecida, o caminho de entrada de pacotes passa a ser:
+
+<screen>
++-----------------+    +------------+    +------------+
+|PREROUTING-mangle| =&gt; |INPUT-mangle| =&gt; |INPUT-filter|
++-----------------+    +------------+    +------------+
+
+
+pois os dados não precisam de tratamento DNAT (o chain
+**PREROUTING-nat** é processado somente uma vez a procura de
+regras que conferem, principalmente para fazer DNAT).
+
+
+**OBS:** Para qualquer operação de entrada/saída
+de pacotes, os dois chains da tabela mangle são sempre os primeiros a serem
+acessados.  Isto é necessário para definir a prioridade e controlar outros
+aspectos especiais dos pacotes que atravessam os filtros.
+
+
+
+ fw-iptables-path-PingICMPLocalNet-Local">###Ping de 192.168.1.4 para 192.168.1.1
+<itemizedlist>
+<listitem>
+
+Endereço de Origem: <literal>192.168.1.4
+
+
+<listitem>
+
+Endereço de Destino: <literal>192.168.1.1
+
+
+<listitem>
+
+Interface de Entrada: <literal>eth0
+
+
+<listitem>
+
+Interface de Saída: <literal>eth0
+
+
+<listitem>
+
+Protocolo: <literal>ICMP
+
+
+<listitem>
+
+Descrição: <literal>Ping de 192.168.1.4 para a máquina do firewall.
+
+
+
+<screen>
+ENTRADA DE PACOTES (recebimento da requisição, vinda de 192.168.1.4): 
++-----------------+    +--------------+    +------------+    +------------+
+|PREROUTING-mangle| =&gt; |PREROUTING-nat| =&gt; |INPUT-mangle| =&gt; |INPUT-filter|
++-----------------+    +--------------+    +------------+    +------------+
+
+SAÍDA DE PACOTES (envio da resposta a 192.168.1.4)
++-------------+    +-------------+    +------------------+
+|OUTPUT-mangle| =&gt; |OUTPUT-filter| =&gt; |POSTROUTING-mangle|
++-------------+    +-------------+    +------------------+
+
+
+Quando damos o ping (**echo request**) os pacotes seguem o
+caminho em **ENTRADA DE PACOTES** percorrendo os chains na
+ordem especificada e retornam via **SAÍDA DOS PACOTES**
+(**echo reply**).
+
+
+**OBS1:** Para qualquer operação de
+entrada/saída de pacotes, os dois chains da tabela mangle são sempre os
+primeiros a serem acessados.  Isto é necessário para definir a prioridade e
+controlar outros aspectos especiais dos pacotes que atravessam os filtros.
+
+
+
+ fw-iptables-path-FtpTCPLocalNet-Local">###Conexão FTP de 192.168.1.4 para 192.168.1.1
+<itemizedlist>
+<listitem>
+
+Endereço de Origem: <literal>192.168.1.4
+
+
+<listitem>
+
+Endereço de Destino: <literal>192.168.1.1
+
+
+<listitem>
+
+Interface de Origem: <literal>eth0
+
+
+<listitem>
+
+Interface de Destino: <literal>eth0
+
+
+<listitem>
+
+Porta Origem: <literal>1030
+
+
+<listitem>
+
+Porta Destino: <literal>21
+
+
+<listitem>
+
+Protocolo: <literal>TCP
+
+
+<listitem>
+
+Descrição: <literal>Conexão ftp (até o prompt de login, sem transferência de
+dados).
+
+
+
+<screen>
+ENTRADA DOS PACOTES (envio da requisição vindas de 192.168.1.4): 
++-----------------+    +--------------+    +------------+    +------------+
+|PREROUTING-mangle| =&gt; |PREROUTING-nat| =&gt; |INPUT-mangle| =&gt; |INPUT-filter|
++-----------------+    +--------------+    +------------+    +------------+
+
+SAÍDA DE PACOTES (respostas da requisição acima para 192.168.1.4): 
++-------------+    +-------------+    +------------------+
+|OUTPUT-mangle| =&gt; |OUTPUT-filter| =&gt; |POSTROUTING-mangle|
++-------------+    +-------------+    +------------------+
+
+
+A requisição ftp passa através dos chains especificados em **ENTRADA
+DOS PACOTES** com o destino <filename>192.168.1.1</filename> porta
+<filename>21</filename> e retorna por **SAÍDA DE PACOTES**
+para <filename>192.168.1.4</filename> porta <filename>1030</filename>.  Após a
+conexão ser estabelecida, o caminho de entrada de pacotes é:
+
+<screen>
++-----------------+    +------------+    +------------+
+|PREROUTING-mangle| =&gt; |INPUT-mangle| =&gt; |INPUT-filter|
++-----------------+    +------------+    +------------+
+
+
+pois os dados não precisam de tratamento DNAT (o chain
+**PREROUTING-nat** é processado somente uma vez a procura de
+regras que conferem, principalmente para fazer DNAT).
+
+
+**OBS:** O roteamento é sempre realizado após o
+processamento do chain **PREROUTING** da tabela
+**nat**.
+
+
+
+ fw-iptables-path-FtpTCPLocalNet-RemoteNet">###Conexão FTP de 192.168.1.4 para ftp.debian.org.br
+<itemizedlist>
+<listitem>
+
+Endereço de Origem: <literal>192.168.1.4
+
+
+<listitem>
+
+Endereço de Destino: <literal>200.198.129.162
+
+
+<listitem>
+
+Interface de Origem: <literal>eth0
+
+
+<listitem>
+
+Interface de Destino: <literal>ppp0
+
+
+<listitem>
+
+Porta Origem: <literal>1032
+
+
+<listitem>
+
+Porta Destino: <literal>21
+
+
+<listitem>
+
+Protocolo: <literal>TCP
+
+
+<listitem>
+
+Descrição: <literal>Conexão ftp (até o prompt de login, sem transferência de
+dados).
+
+
+
+<screen>
+SAÍDA DOS PACOTES (requisição vindas de 192.168.1.4): 
++-----------------+    +--------------+    +--------------+   
+|PREROUTING-mangle| =&gt; |PREROUTING-nat| =&gt; |FORWARD-mangle| =&gt; (continua abaixo)
++-----------------+    +--------------+    +--------------+   
++--------------+    +------------------+    +---------------+
+|FORWARD-filter| =&gt; |POSTROUTING-mangle| =&gt; |POSTROUTING-nat|
++--------------+    +------------------+    +---------------+
+
+ENTRADA DE PACOTES (respostas da requisição acima, enviadas para 192.168.1.4): 
++-----------------+    +--------------+    +--------------+    +------------------+
+|PREROUTING-mangle| =&gt; |FORWARD-mangle| =&gt; |FORWARD-filter| =&gt; |POSTROUTING-mangle|
++-----------------+    +--------------+    +--------------+    +------------------+
+
+
+A requisição ftp passa através dos chains especificados em **SAÍDA DOS
+PACOTES** com o destino <filename>200.198.129.162</filename> porta
+<filename>21</filename> (após a resolução DNS de
+<filename>ftp.debian.org.br</filename>) e retorna por **ENTRADA DE
+PACOTES** para <filename>192.168.1.4</filename> porta
+<filename>1032</filename>.
+
+
+Note que o Masquerading regrava os pacotes; para a máquina
+<filename>200.198.129.162</filename> a conexão está sendo feita para
+<filename>200.217.29.67</filename>.  As respostas de conexões vindas de
+<filename>200.198.129.162</filename> e indo para
+<filename>200.217.29.67</filename> são regravadas no firewall com o destino
+<filename>192.168.1.4</filename> e enviadas para a máquina correspondente.
+Após a conexão ser estabelecida, o caminho de saída de pacotes para
+200.198.129.163 é:
+
+<screen>
++-----------------+    +--------------+    +--------------+    +------------------+
+|PREROUTING-mangle| =&gt; |FORWARD-mangle| =&gt; |FORWARD-filter| =&gt; |POSTROUTING-mangle|
++-----------------+    +--------------+    +--------------+    +------------------+
+
+
+Após a conexão estabelecida, o caminho da entrada de pacotes vindos de
+200.198.129.163 é:
+
+<screen>
++-----------------+    +--------------+    +--------------+    +------------------+
+|PREROUTING-mangle| =&gt; |FORWARD-mangle| =&gt; |FORWARD-filter| =&gt; |POSTROUTING-mangle|
++-----------------+    +--------------+    +--------------+    +------------------+
+
+
+Isto acontece porque após feita a conexão Masquerading (via PREROUTING-nat), o
+firewall já sabe como reescrever os pacotes para realizar a operação de
+Masquerading, reescrevendo todos os pacotes que chegam de
+<filename>www.debian.org.br</filename> para <filename>192.168.1.4</filename>.
+
+
+**OBS:** As conexões Masquerading feitas através
+da rede interna, são enviadas para <filename>200.198.129.162</filename> tem o
+endereço de origem ajustado para <filename>200.217.29.67</filename> que é o IP
+de nossa interface <filename>ppp0</filename>.  Quando as respostas atravessam o
+firewall, os pacotes são checados pra saber se são uma resposta a uma conexão
+masquerading e fará a regravação dos pacotes substituindo o endereço de destino
+para <filename>192.168.1.4</filename>.  Caso uma operação de Masquerading
+falhe, os pacotes serão Bloqueados.
+
+
+
+ fw-iptables-path-FtpTCPRemoteNet-Local">###Conexão FTP de 200.198.129.162 para 200.217.29.167
+<itemizedlist>
+<listitem>
+
+Endereço de Origem: <literal>200.198.129.162
+
+
+<listitem>
+
+Endereço de Destino: <literal>200.217.29.67
+
+
+<listitem>
+
+Interface de Origem: <literal>ppp0
+
+
+<listitem>
+
+Interface de Destino: <literal>ppp0
+
+
+<listitem>
+
+Porta Origem: <literal>3716
+
+
+<listitem>
+
+Porta Destino: <literal>21
+
+
+<listitem>
+
+Protocolo: <literal>TCP
+
+
+<listitem>
+
+Descrição: <literal>Conexão ao serviço ftp do firewall
+
+
+
+<screen>
+ENTRADA DOS PACOTES (requisição vinda de 200.198.129.162): 
++-----------------+    +--------------+    +-------------+    +------------+
+|PREROUTING-mangle| =&gt; |PREROUTING-nat| =&gt; |INPUT-mangle | =&gt; |INPUT-filter|
++-----------------+    +--------------+    +-------------+    +------------+
+
+SAÍDA DE PACOTES (respostas da requisição de 200.198.129.162): 
++-------------+    +-------------+    +------------------+
+|OUTPUT-mangle| =&gt; |OUTPUT-filter| =&gt; |POSTROUTING-mangle|
++-------------+    +-------------+    +------------------+
+
+
+A requisição ftp passa através dos chains especificados em **ENTRADA
+DOS PACOTES** com o destino <filename>200.217.29.67</filename> (nossa
+interface <filename>ppp0</filename> local) porta <filename>21</filename> e
+retorna por **SAÍDA DE PACOTES** para
+<filename>200.198.129.162</filename> porta <filename>3716</filename> (também
+via <filename>ppp0</filename>).  Após a conexão ser estabelecida, o caminho de
+entrada de pacotes é:
+
+<screen>
++-----------------+    +------------+    +------------+
+|PREROUTING-mangle| =&gt; |INPUT-mangle| =&gt; |INPUT-filter|
++-----------------+    +------------+    +------------+
+
+
+Isto acontece porque após feita a análise do chain
+**PREROUTING** (para necessidade de DNAT), a máquina já saberá
+tomar a decisão apropriada para gerenciar aquela conexão.
+
+
+
+ fw-iptables-path-grafico">###Gráfico geral da passagem dos pacotes
+
+Este gráfico foi retirado do documento
+<filename>netfilter-hacking-HOWTO.txt</filename> e mostra a estrutura geral de
+passagem dos pacotes nas tabelas/chains.  Os exemplos de passagem de pacotes
+acima poderão ser facilmente comparados com as etapas abaixo para compreender a
+estrutura do <command>iptables.
+
+<screen>
+E ---&gt; PREROUTING ------&gt; (ROTEAM.) ---&gt; FORWARD ----------&gt; POSTROUTING --&gt; S
+       Mangle e              |           Mangle       ^      Mangle
+       NAT (DNAT))           |           Filter       |      NAT (SRC)
+                             |                     (ROTEAM.)
+                             v                        |
+                             IN Mangle,              OUT - Mangle,
+                             |  Filter                ^    NAT (DNAT)
+                             |                        |    Filter
+                             v                        |  
+                    +----------------------------------------+
+                    |            Processo Local              |
+                    +----------------------------------------+
+
+
+
+
+
+ fw-iptables-exemplo">###Exemplos de configurações do iptables
+
+Exemplo de como bloquear todas as conexões para a máquina do firewall
+permitindo somente conexões da máquina Linux para fora.
+
+ fw-iptables-exemplo-bloqueio">###Bloqueando conexões de fora para sua máquina
+
+As regras a seguir servem para bloquear tentativas de conexões da interface de
+Internet (ppp0) a sua rede sem bloquear o tráfego de conexões já iniciadas.  O
+tráfego de outras interfaces não é afetado com as regras a seguir:
+
+<screen>
+iptables -A INPUT -i ppp0 -m state --state ! ESTABLISHED,RELATED -j DROP
+
+
+Todas as conexões vindas de ppp0 de estado diferente de ESTABLISHED e RELATED
+(NEW e INVALID) serão derrubadas.  Veja <xref linkend="fw-iptables-mod-state"/>
+para detalhes.
+
+<screen>
+iptables -A INPUT -i ppp0 --syn -j DROP
+
+
+Este acima é mais simples e possui o mesmo efeito: Pacotes SYN são usados para
+iniciar conexões, derrubando pacotes deste tipo significa bloquear novas
+conexões.  Pacotes de conexões já estabelecidas ainda são permitidos.
+
+
+Estas regras acima servem para quem não deseja NENHUM acesso indevido a sua
+máquina.  Existem outras formas de bloquear conexões de modo mais seletivo
+usando chains específicos, endereços de origem/destino, portas, etc., este tipo
+de configuração é muito usada caso precise fornecer algum tipo de serviço que
+seja acessível externamente e protegendo outros.
+
+
+
+ fw-iptables-exemplo-trojans">###Monitorando tentativa de conexão de trojans em sua máquina
+
+As regras abaixo alertam sobre a tentativa de conexão dos trojans "For Win"
+mais conhecidos.  Coloquei isto aqui por curiosidade de algumas pessoas, pois
+máquinas <command>Linux são imunes a este tipo de coisa:
+
+<screen>
+#!/bin/sh
+
+TROJAN_PORTS="12345 31336 31337 31338 3024 4092 5714 5742 2583 8787 5556 5557"
+
+iptables -t filter -N trojans-in
+
+for PORTA in ${TROJAN_PORTS};do
+ iptables -A trojans-in -p tcp --sport=1024: --dport=${PORTA} -j LOG \
+          --log-prefix "FIREWALL: Trojan ${PORTA} "
+ iptables -A trojans-in -p tcp --sport=1024: --dport=${PORTA} -j DROP
+done
+
+iptables -t filter -A INPUT -i ppp0 -j trojans-in
+
+
+A primeira linha do <command>iptables cria o chain
+**trojans-in** dentro da tabela **filter**
+que usaremos para armazenar nossas regras de firewall.  A segunda (dentro do
+laço for) faz uma regra de LOG para registrar as tentativas de acesso de
+trojans em nosso sistema, a terceira rejeita o acesso.  A quarta regra do
+<command>iptables cria de todo o tráfego vindo da interface ppp0 pra
+o chain trojans-in (queremos que só o tráfego vindo da internet seja analisado
+pelo chain **trojans-in**).
+
+
+Muitas das portas especificadas na variável
+<replaceable>TROJAN_PORTS</replaceable> são antigas conhecidas de quem já
+brincou ou sofreram com o <command>Back Orifice, <command>Win
+Crack, <command>NetBus (quem nunca passou pela fase de ter
+uma lista com mais de 100 netmasks e conseguir encontrar centenas de máquinas
+por dia infectadas pelo BO?  :-).
+
+
+No código acima a única coisa que precisa fazer para adicionar mais portas é
+inseri-las na variável <replaceable>TROJAN_PORTS</replaceable> e executar o
+programa.  O laço do <literal>for executará as 2 regras para cada
+porta processada (economizando linhas e linhas de regras, me livrando de uma
+LER e poupando muitos bytes neste guia ;-).
+
+
+Dependendo do número de portas alvo, este código pode ser muito simplificado
+usando o recurso multiport do <command>iptables (veja <xref linkend="fw-iptables-mod-multiport"para detalhes).
+
+
+
+ fw-iptables-exemplo-snat">###Conectando sua rede interna a Internet
+
+O seguinte exemplo permite ligar sua rede interna com a faixa de IP's
+<filename>192.168.1.*</filename> a internet (usando uma conexão discada do tipo
+ppp):
+
+<screen>
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -o ppp+ -j MASQUERADE
+echo "1" &gt;/proc/sys/net/ipv4/ip_forward
+
+
+
+ fw-iptables-exemplo-fw">###Um exemplo de firewall simples
+
+Esta seção possui um exemplo mais elaborado de firewall que servirá para
+máquinas conectadas via ppp com uma rede interna conectada via Masquerading.
+Este exemplo não é tão complexo e cobre as expectativas mais comuns de pessoas
+que gostam de explorar os potenciais de rede no <command>Linux ou
+satisfazer sua curiosidade.  Ele poderá ser facilmente adaptado para atender
+outro tipo de necessidade.  A configuração assumida é a seguinte:
+
+<orderedlist numeration="arabic">
+<listitem>
+
+Máquina do firewall com 2 interfaces de rede, uma é <filename>eth0</filename>
+com o IP <filename>192.168.1.1</filename> que serve de ligação a sua rede
+Interna, a outra é <filename>ppp0</filename> que é a interface Internet.
+
+
+<listitem>
+
+Qualquer acesso externo a máquinas da rede interna é bloqueado.
+
+
+<listitem>
+
+Os usuários da rede local tem acesso livre ao servidor
+<command>Linux.
+
+
+<listitem>
+
+Qualquer acesso externo a máquina do firewall é bloqueado, exceto conexões para
+o serviço <command>Apache (<literal>httpd).  Outras
+tentativas de conexões devem ser explicitamente registradas nos logs do sistema
+para conhecimento do administrador.
+
+
+<listitem>
+
+Todos os usuários possuem acesso livre a Internet via Masquerading, exceto que
+o acesso para o serviço www deve ser obrigatoriamente feito via
+<command>squid, e o servidor smtp a ser usado deverá ser o do
+firewall <command>Linux.
+
+
+<listitem>
+
+Prioridades serão estabelecidas para os serviços de telnet, IRC,talk e DNS.
+
+
+</orderedlist>
+<screen>
+#!/bin/sh
+# Modelo de configuração de firewall
+# Autor: Gleydson M. Silva
+# Data: 05/09/2001
+# Descrição: Produzido para ser distribuído livremente, acompanha o guia 
+#             Foca GNU/Linux.  [guiafoca](http://www.guiafoca.org) )
+#
+
+# É assumido um sistema usando kmod para carga automática dos módulos usados por
+# esta configuração do firewall:
+# ipt_filter
+# ipt_nat
+# ipt_conntrack
+# ipt_mangle
+# ipt_TOS
+# ipt_MASQUERADE
+# ipt_LOG
+
+# Se você tem um kernel modularizado que não utiliza o kmod, será necessário 
+# carregar estes módulos via modprobe, insmod ou iptables --modprobe=modulo
+
+##### Definição de política padrão do firewall #####
+# Tabela filter
+iptables -t filter -P INPUT DROP
+iptables -t filter -P OUTPUT ACCEPT
+iptables -t filter -P FORWARD DROP
+# Tabela nat
+iptables -t nat -P PREROUTING ACCEPT
+iptables -t nat -P OUTPUT ACCEPT
+iptables -t nat -P POSTROUTING DROP
+# Tabela mangle
+iptables -t mangle -P PREROUTING ACCEPT
+iptables -t mangle -P OUTPUT ACCEPT
+
+
+##### Proteção contra IP Spoofing #####
+for i in /proc/sys/net/ipv4/conf/*/rp_filter; do
+ echo 1 &gt;$i
+done
+
+##### Ativamos o redirecionamento de pacotes (requerido para NAT) #####
+echo "1" &gt;/proc/sys/net/ipv4/ip_forward
+
+# O iptables define automaticamente o número máximo de conexões simultâneas 
+# com base na memória do sistema. Para 32MB = 2048, 64MB = 4096, 128MB = 8192, 
+# sendo que são usados 350 bytes de memória residente para controlar 
+# cada conexão. 
+# Quando este limite é excedido a seguinte mensagem é mostrada:
+#  "ip_conntrack: maximum limit of XXX entries exceed"
+#
+# Como temos uma rede simples, vamos abaixar este limite. Por outro lado isto 
+# criará uma certa limitação de tráfego para evitar a sobrecarga do servidor. 
+echo "2048" &gt; /proc/sys/net/ipv4/ip_conntrack_max
+
+
+###############################################################
+#                      Tabela filter                          #
+###############################################################
+
+##### Chain INPUT #####
+# Criamos um chain que será usado para tratar o tráfego vindo da Internet e 
+iptables -N ppp-input
+
+# Aceita todo o tráfego vindo do loopback e indo pro loopback
+iptables -A INPUT -i lo -j ACCEPT
+# Todo tráfego vindo da rede interna também é aceito
+iptables -A INPUT -s 192.168.1.0/24 -i eth0 -j ACCEPT
+
+# Conexões vindas da interface ppp0 são tratadas pelo chain ppp-input
+iptables -A INPUT -i ppp+ -j ppp-input
+
+# Qualquer outra conexão desconhecida é imediatamente registrada e derrubada
+iptables -A INPUT -j LOG --log-prefix "FIREWALL: INPUT "
+iptables -A INPUT -j DROP
+
+
+##### Chain FORWARD ####
+# Permite redirecionamento de conexões entre as interfaces locais
+# especificadas abaixo. Qualquer tráfego vindo/indo para outras
+# interfaces será bloqueado neste passo
+iptables -A FORWARD -d 192.168.1.0/24 -i ppp+ -o eth0 -j ACCEPT
+iptables -A FORWARD -s 192.168.1.0/24 -i eth0 -o ppp+ -j ACCEPT
+iptables -A FORWARD -j LOG --log-prefix "FIREWALL: FORWARD "
+iptables -A FORWARD -j DROP
+
+
+##### Chain ppp-input ####
+# Aceitamos todas as mensagens icmp vindas de ppp0 com certa limitação
+# O tráfego de pacotes icmp que superar este limite será bloqueado
+# pela regra "...! ESTABLISHED,RELATED -j DROP" no final do 
+# chain ppp-input
+#
+iptables -A ppp-input -p icmp -m limit --limit 2/s -j ACCEPT
+
+# Primeiro aceitamos o tráfego vindo da Internet para o serviço www (porta 80)
+iptables -A ppp-input -p tcp --dport 80 -j ACCEPT
+
+# A tentativa de acesso externo a estes serviços serão registrados no syslog
+# do sistema e serão bloqueados pela última regra abaixo.
+iptables -A ppp-input -p tcp --dport 21 -j LOG --log-prefix "FIREWALL: ftp "
+iptables -A ppp-input -p tcp --dport 25 -j LOG --log-prefix "FIREWALL: smtp "
+iptables -A ppp-input -p udp --dport 53 -j LOG --log-prefix "FIREWALL: dns "
+iptables -A ppp-input -p tcp --dport 110 -j LOG --log-prefix "FIREWALL: pop3 "
+iptables -A ppp-input -p tcp --dport 113 -j LOG --log-prefix "FIREWALL: identd "
+iptables -A ppp-input -p udp --dport 111 -j LOG --log-prefix "FIREWALL: rpc"
+iptables -A ppp-input -p tcp --dport 111 -j LOG --log-prefix "FIREWALL: rpc"
+iptables -A ppp-input -p tcp --dport 137:139 -j LOG --log-prefix "FIREWALL: samba "
+iptables -A ppp-input -p udp --dport 137:139 -j LOG --log-prefix "FIREWALL: samba "
+# Bloqueia qualquer tentativa de nova conexão de fora para esta máquina
+iptables -A ppp-input -m state --state ! ESTABLISHED,RELATED -j LOG --log-prefix "FIREWALL: ppp-in "
+iptables -A ppp-input -m state --state ! ESTABLISHED,RELATED -j DROP
+# Qualquer outro tipo de tráfego é aceito
+iptables -A ppp-input -j ACCEPT
+
+
+#######################################################
+#                   Tabela nat                        #
+#######################################################
+
+##### Chain POSTROUTING #####
+# Permite qualquer conexão vinda com destino a lo e rede local para eth0
+iptables -t nat -A POSTROUTING -o lo -j ACCEPT
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -o eth0 -j ACCEPT
+
+# Não queremos que usuários tenham acesso direto a www e smtp da rede externa, o 
+# squid e smtpd do firewall devem ser obrigatoriamente usados. Também registramos
+# as tentativas para monitorarmos qual máquina está tentando conectar-se diretamente.
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -o ppp+ -p tcp --dport 80 -j LOG --log-prefix "FIREWALL: SNAT-www "
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -o ppp+ -p tcp --dport 25 -j LOG --log-prefix "FIREWALL: SNAT-smtp "
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -o ppp+ -p tcp --dport 25 -j DROP
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -o ppp+ -p tcp --dport 80 -j DROP
+# É feito masquerading dos outros serviços da rede interna indo para a interface 
+# ppp0 
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -o ppp+ -j MASQUERADE
+
+# Qualquer outra origem de tráfego desconhecida indo para eth0 (conexões vindas 
+# de ppp+) são bloqueadas aqui
+iptables -t nat -A POSTROUTING -o eth0 -d 192.168.1.0/24 -j LOG --log-prefix "FIREWALL: SNAT unknown"
+iptables -t nat -A POSTROUTING -o eth0 -d 192.168.1.0/24 -j DROP
+# Quando iniciamos uma conexão ppp, obtermos um endereço classe A (10.x.x.x) e após
+# estabelecida a conexão real, este endereço é modificado. O tráfego indo para 
+# a interface ppp não deverá ser bloqueado. Os bloqueios serão feitos no 
+# chain INPUT da tabela filter
+iptables -t nat -A POSTROUTING -o ppp+ -j ACCEPT
+
+# Registra e bloqueia qualquer outro tipo de tráfego desconhecido
+iptables -t nat -A POSTROUTING -j LOG --log-prefix "FIREWALL: SNAT "
+iptables -t nat -A POSTROUTING -j DROP
+
+
+###############################################
+#                Tabela mangle                #
+###############################################
+
+##### Chain OUTPUT #####
+# Define mínimo de espera para os serviços ftp, telnet, irc e DNS, isto 
+# dará uma melhor sensação de conexão em tempo real e diminuirá o tempo 
+# de espera para conexões que requerem resolução de nomes. 
+iptables -t mangle -A OUTPUT -o ppp+ -p tcp --dport 21 -j TOS --set-tos 0x10
+iptables -t mangle -A OUTPUT -o ppp+ -p tcp --dport 23 -j TOS --set-tos 0x10
+iptables -t mangle -A OUTPUT -o ppp+ -p tcp --dport 6665:6668 -j TOS --set-tos 0x10
+iptables -t mangle -A OUTPUT -o ppp+ -p udp --dport 53 -j TOS --set-tos 0x10
+
+
+
+
+

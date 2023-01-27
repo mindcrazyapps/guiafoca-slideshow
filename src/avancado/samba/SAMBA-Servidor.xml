@@ -1,0 +1,1271 @@
+<!-- Converted by db4-upgrade version 1.0 -->
+
+ s-samba-s">###Conceitos gerais para a configuração do SAMBA
+
+Este capítulo documenta como configurar o seu servidor <command>SAMBA
+permitindo o acesso a compartilhamento de arquivos e impressão no sistema.
+
+ s-samba-nome">###Nome de máquina (nome NetBios)
+
+Toda a máquina em uma rede NetBEUI é identificada por um nome, este nome deve
+ser único na rede e permite que outras máquinas acessem os recursos
+disponibilizados ou que sejam enviadas mensagens para a máquina.  Este nome é
+composto de 16 caracteres, sendo 15 que identificam a máquina e o último o tipo
+de serviço que ela disponibiliza.  O tipo de serviço é associado com o nome da
+máquina e registrado em servidores de nomes confirme a configuração da máquina
+(você verá isto mais adiante).
+
+
+O nome de máquina é especificado nas diretivas **netbios
+name** e **netbios aliases** (veja <xref linkend="s-samba-s-global-nome"/>) para detalhes.
+
+
+
+ s-samba-workgroup">###Grupo de trabalho
+
+O grupo de trabalho organiza a estrutura de máquinas da rede em forma de
+árvore, facilitando sua pesquisa e localização.  Tomemos como exemplo uma
+empresa grande com os departamentos <literal>comunicação,
+<literal>redes, <literal>web, <literal>rh, as
+máquinas que pertencem ao grupo de <literal>redes serão agrupadas no
+programa de navegação:
+
+<screen>
+redes
+  gleydson
+  tecnico
+  marcelo
+  henrique
+  michelle
+
+rh
+  mrpaoduro
+ 
+web
+  web1
+  web2
+  web3
+
+comunicacao
+  comunic1
+  comunic2
+  comunic3
+
+
+A segurança no acesso a arquivos e diretórios na configuração de
+**grupo de trabalho** é controlada pela própria máquina,
+normalmente usando segurança a nível de compartilhamento.  Esta segurança
+funciona definindo um usuário/senha para acessar cada compartilhamento que a
+máquina possui.  O <command>Lan Manager, <command>Windows for
+Workgroups, <command>Windows 95, <command>Windows
+98, <command>XP Home Edition usam este nível de acesso por
+padrão.  Se deseja configurar uma rede usando o nível de grupo de trabalho,
+veja <xref linkend="s-samba-wrkgrp"para detalhes passo a passo e exemplos
+práticos.
+
+
+Os programas para navegação na rede NetBIOS são mostrados em <xref linkend="s-samba-c-workgroup-linux-smbclient"/>, <xref linkend="s-samba-c-workgroup-linux-nmblookup"e <xref linkend="s-samba-c-graficos"/>.
+
+
+
+ s-samba-dominio">###Domínio
+
+O funcionamento é semelhante ao grupo de trabalho, com a diferença que a
+segurança é controlada pela máquina central (PDC) usando diretivas de acesso e
+grupos.  O PDC (Primary Domain Controller) deverá ter todas as contas de acesso
+que serão utilizadas pelo usuário para acessar os recursos existentes em outras
+máquinas, script de logon que poderá ser executado em cada máquina para fazer
+ajustes, sincronismo, manutenção ou qualquer outra tarefa programada pelo
+administrador do sistema.
+
+
+Estas características para configuração de máquinas em domínio são documentadas
+passo a passo em <xref linkend="s-samba-dom-intro"/>.
+
+
+
+ s-samba-compart">###Compartilhamento
+
+Um compartilhamento é um recurso da máquina local que é disponibilizado para
+acesso via rede, que poderá ser **mapeada** (veja <xref linkend="s-samba-mapeamento"/>) por outra máquina.  O compartilhamento pode ser
+um diretório, arquivo, impressora.  Além de permitir o acesso do usuário, o
+compartilhamento pode ser protegido por senha, e ter controle de acesso de
+leitura/gravação, monitoração de acessos, diretórios ocultos, autenticação via
+PDC (domínio) e outras formas para restringir e garantir segurança na
+disponibilização dos dados (veja <xref linkend="s-samba-a"para aprender os
+métodos de como fazer isto).
+
+
+Um compartilhamento no SAMBA pode ser acessível publicamente (sem senha) ou
+estar rigidamente protegido tendo que passar por diversas barreiras para chegar
+ao seu conteúdo, como senhas, endereço de origem, interfaces, usuário
+autorizados, permissões de visualização, etc.
+
+
+O guia **Foca Linux** abordará estes assuntos com detalhes e
+explicará didaticamente como tornar seguro seu servidor samba e garantir um
+minucioso controle de acesso a seus compartilhamentos.
+
+
+
+ s-samba-mapeamento">###Mapeamento
+
+Mapear significa pegar um diretório/arquivo/impressora compartilhado por alguma
+máquina da rede para ser acessada pela máquina local.  Para mapear algum
+recurso de rede, é necessário que ele seja compartilhado na outra máquina (veja
+<xref linkend="s-samba-compart"/>).  Por exemplo, o diretório
+<filename>/usr</filename> <literal>compartilhado com o nome
+<literal>usr, pode ser mapeado por uma máquina
+<command>Windows como a unidade **F:**, ou mapeado
+por uma máquina <command>Linux no diretório
+<filename>/mnt/samba</filename>.
+
+
+O programa responsável por mapear unidades compartilhadas no
+<command>Linux é o <command>smbmount e
+<command>smbclient (veja <xref linkend="s-samba-c-workgroup-linux"/>).
+
+
+
+ s-samba-nmbd">###Navegação na Rede e controle de domínio
+
+Esta função é controlada pelo <command>nmbd que fica ativo o tempo
+todo disponibilizando os recursos da máquina na rede, participando de eleições
+NetBIOS (<xref linkend="s-samba-s-oslevel"/>), fazer logon de máquinas no
+domínio (<xref linkend="s-samba-dom-intro"/>), etc.
+
+
+A função de navegação na rede é feita utilizando o compartilhamento
+<filename>IPC$</filename>.  Este compartilhamento possui acesso público somente
+leitura e utiliza o usuário "guest" para disponibilização de seus.  Como deve
+ter percebido, é necessário especificar esta ID de usuário através do parâmetro
+<literal>guest account (<xref linkend="s-samba-s-a-param"/>), ou a
+navegação de recursos no sistema (ou na rede, dependendo da configuração do
+SAMBA) não funcionará.
+
+
+**OBS:** A função de navegação (browsing) poderá
+não funcionar corretamente caso a máquina não consiga resolver nomes NetBIOS
+para endereços IP.
+
+
+
+ s-samba-arquivocfg">###Arquivo de configuração do samba
+
+Toda a configuração relacionada com nomes, grupo de trabalho, tipo de servidor,
+log, compartilhamento de arquivos e impressão do <command>samba é
+colocada no arquivo de configuração <filename>/etc/samba/smb.conf</filename>.
+Este arquivo é dividido em **seções** e
+**parâmetros**.
+
+
+Uma seção no arquivo de configuração do <command>samba
+(<filename>smb.conf</filename>) é definido por um nome entre "[ ]".  As seções
+tem o objetivo de organizar os parâmetros pra que tenham efeito somente em
+algumas configurações de compartilhamento do servidor (exceto os da seção
+<literal>[global] que não especificam compartilhamentos, mas suas
+diretivas podem ser válidas para todas os compartilhamentos do arquivo de
+configuração).  Alguns nomes de seções foram reservados para configurações
+específicas do <command>samba, eles são os seguintes:
+
+<variablelist>
+<varlistentry>
+<term><literal>[global]
+<listitem>
+
+Define configurações que afetam o servidor samba como um todo, fazendo efeito
+em todos os compartilhamentos existentes na máquina.  Por exemplo, o grupo de
+trabalho, nome do servidor, página de código, restrições de acesso por nome,
+etc.  Veja <xref linkend="s-samba-s-global"/>.
+
+
+
+<varlistentry>
+<term><literal>[homes]
+<listitem>
+
+Especifica opções de acesso a diretórios homes de usuários.  O diretório home é
+disponibilizado somente para seu dono, após se autenticar no sistema.  Veja
+<xref linkend="s-samba-s-homes"/>.
+
+
+
+<varlistentry>
+<term><literal>[printers]
+<listitem>
+
+Define opções gerais para controle das impressoras do sistema.  Este
+compartilhamento mapeia os nomes de todas as impressoras encontradas no
+<filename>/etc/printcap</filename>.  Configurações especiais podem ser feitas
+separadamente.  Veja <xref linkend="s-samba-s-printers"/>.
+
+
+
+<varlistentry>
+<term><literal>[profile]
+<listitem>
+
+Define um perfil quando o servidor <command>samba é usado como PDC de
+domínio.  Veja <xref linkend="s-samba-dom-profiles"/>.
+
+
+
+</variablelist>
+
+Qualquer outro nome de [seção] no arquivo <filename>smb.conf</filename> que não
+sejam as acima, são tratadas como um compartilhamento ou impressora.
+
+
+Um **parâmetro** é definido no formato **nome =
+valor**.  Para um exemplo prático, veja um exemplo de arquivo
+<filename>smb.conf</filename> em <xref linkend="s-samba-exemplos"/>.  Na
+configuração de booleanos, a seguinte sintaxe pode ser usada:
+
+<itemizedlist>
+<listitem>
+
+<literal>0 ou <literal>1
+
+
+<listitem>
+
+<literal>yes ou <literal>no
+
+
+<listitem>
+
+<literal>true ou <literal>false
+
+
+
+
+Assim, as seguintes configurações são equivalentes
+
+<screen>
+master browse = 0
+master browse = no
+master browse = false
+
+
+Todos significam "NÃO ser o navegador principal de domínio".  A escolha fica a
+gosto do administrador.  Durante a configuração, você notará o poder da
+flexibilidade oferecida pelo samba na configuração de um servidor SMB :-)
+
+
+Linhas iniciadas por <literal># ou <literal>; são tratadas
+como comentário.  Quebras de linha pode ser especificadas com uma
+<literal>\ no final da linha.
+
+
+
+ s-samba-s-global">###Seção <literal>[global]
+
+Os parâmetros especificados nesta seção tem efeito em todo o servidor
+<command>samba incluindo os compartilhamentos.  Caso o parâmetro seja
+novamente especificado para o compartilhamento, o valor que valerá é o do
+compartilhamento.
+
+
+Por exemplo, se <literal>guest user = nobody for usado na seção
+**[global]** e o <literal>guest user = foca for
+usado no compartilhamento <literal>[focalinux], o usuário que fará
+acesso público a todos os compartilhamentos do servidor será o
+<literal>nobody, exceto para o compartilhamento
+<literal>[focalinux], que será feito pelo usuário
+<literal>foca.  Veja <xref linkend="s-samba-s-a"para obter uma
+lista e descrição dos principais parâmetros de compartilhamentos existentes.
+Uma lista completa pode ser obtida na página de manual do
+<filename>smb.conf</filename>.
+
+
+Irei descrever alguns parâmetros utilizados nesta seção, organizado de forma
+didática e simplificada.
+
+ s-samba-s-global-nome">###Nomes e grupos de trabalho
+<variablelist>
+<varlistentry>
+<term>netbios name = [nome do servidor]
+<listitem>
+
+Especifica o nome NetBIOS primário do servidor samba.  Caso não seja ajustado,
+ele usará o hostname de sua máquina como valor padrão.
+
+
+Ex.: <literal>netbios name = focasamba.
+
+
+
+<varlistentry>
+<term>workgroup = [grupo de trabalho/domínio]
+<listitem>
+
+Diz qual o nome do grupo de trabalho/domínio que a máquina samba pertencerá.
+
+
+Ex.: <literal>workgroup = focalinux.
+
+
+
+<varlistentry>
+<term>netbios aliases = [nomes alternativos ao sistema]
+<listitem>
+
+Permite o uso de nomes alternativos ao servidor, separados por espaços.
+
+
+Ex.: <literal>teste1 teste2.
+
+
+
+<varlistentry>
+<term>server string = [identificação]
+<listitem>
+
+Identificação enviada do servidor samba para o ambiente de rede.  A string
+padrão é <literal>Samba %v (%v é substituída pela versão do samba,
+para maiores detalhes, veja <xref linkend="s-samba-s-varsubst"/>).
+
+
+Ex: <literal>server string = Servidor Samba versão %v.
+
+
+
+<varlistentry>
+<term>name resolve order = [ordem]
+<listitem>
+
+Define a ordem de pesquisa para a resolução de nomes no samba.  A ordem padrão
+é: <literal>lmhosts host wins bcast, que é a melhor para resolução
+rápida e que tente gerar menos tráfego broadcast possível.  Veja <xref linkend="s-samba-s-nameresolv"para uma explicação mais detalhada.
+
+
+
+</variablelist>
+
+
+ s-samba-s-global-carac">###Caracteres e página de código
+
+Uma das partes essenciais após colocar o <command>SAMBA em
+funcionamento, é configurar a página de código para que os caracteres sejam
+gravados e exibidos corretamente no cliente.  A primeira coisa que precisa
+verificar é se seu kernel possui o suporte a página de código local.  Caso não
+tenha, baixe o fonte do kernel e siga os seguintes passos na configuração:
+
+<itemizedlist>
+<listitem>
+
+Dentro da opção "File Systems", "Network File Systems" defina como "Default
+Remote NLS Option" a iso8859-1.  Esta opção permite ao
+<command>smbmount montar os volumes locais usando os caracteres
+corretos.
+
+
+<listitem>
+
+Entre na opção "File Systems", "Native Language Support".  Na opção "Default
+NLS Option" coloque "iso8859-1".  Ative também o suporte as páginas de código
+437, 850 e 860 e também ao conjunto de caracteres iso8859-1 e UTF8.
+
+
+
+
+Note que esta ordem pode variar dependendo da versão do seu kernel, basta que
+as entenda para fazer as modificações apropriadas.  Em caso de dúvidas sobre a
+compilação do kernel, veja <xref linkend="kern-recompilando"/>.
+
+<variablelist>
+<varlistentry>
+<term>character set = [conjunto_caracteres]
+<listitem>
+
+Seleciona o conjunto de caracteres dos arquivos exibidos pelo servidor samba.
+Para os idiomas de língua latina, sempre utilize iso8859-1.
+
+
+Ex.: <literal>character set = iso8859-1.
+
+
+
+<varlistentry>
+<term>client code page = [pagina_de_codigo]
+<listitem>
+
+Seleciona a página de código do servidor samba para tratar os caracteres.  Para
+os idiomas de língua latina, sempre utilize 850.
+
+
+Ex.: <literal>client code page = 850.
+
+
+
+<varlistentry>
+<term>preserve case =
+<listitem>
+
+Seleciona se arquivos com nomes extensos criados serão criados com os
+caracteres em maiúsculas/minúsculas definidos pelo cliente (no) ou se será
+usado o valor de **default case** (caso seja especificado
+<literal>yes).
+
+
+
+<varlistentry>
+<term>short preserve case =
+<listitem>
+
+Seleciona se os arquivos com nomes curtos (formato 8.3) serão criados com os
+caracteres mixtos enviados pelo cliente (no) ou se será usando o valor de
+**default case** (caso seja especificado
+<literal>yes).
+
+
+
+<varlistentry>
+<term>default case = [lower/upper]
+<listitem>
+
+Define se os arquivos criados terão seus nomes todos em minúsculas (lower) ou
+maiúsculas (upper).
+
+
+
+<varlistentry>
+<term>valid chars = [caracteres]
+<listitem>
+
+Define caracteres válidos nos nomes de arquivos: <literal>valid chars =á:Á é:É
+í:Í ó:Ó ú:Ú â:Â ê:Ê ô:Ô ã:Ã õ:Õ à:À ò:Ò.  Este parâmetro **DEVERÁ** ser sempre especificado depois do
+<literal>client code page, pois caso contrário, eles serão
+substituídos por estes.
+
+
+
+</variablelist>
+
+
+ s-samba-s-global-restrusu">###Restrições de acesso/mapeamento de usuários
+<variablelist>
+<varlistentry>
+<term><literal>guest account = [conta]
+<listitem>
+
+Define a conta local de usuário que será mapeada quando um usuário se conectar
+sem senha (usuário guest).  Veja mais detalhes em <xref linkend="s-samba-s-a-param"/>.
+
+
+
+<varlistentry>
+<term><literal>invalid users
+<listitem>
+
+Define uma lista de usuários que não terão acesso aos recursos do servidor ou
+compartilhamento.  É seguro restringir o acesso samba a usuários com grande
+poder no sistema (como o <literal>root).  Veja mais detalhes em <xref linkend="s-samba-a-restrusu"/>.
+
+
+
+<varlistentry>
+<term><literal>valid users
+<listitem>
+
+Semelhante a opção <literal>invalid users mas permite que somente os
+usuários especificados tenham acesso ao sistema.  Veja mais detalhes em <xref linkend="s-samba-a-restrusu"/>.
+
+
+
+<varlistentry>
+<term><literal>default service = nome
+<listitem>
+
+Caso o serviço que o usuário deseja se conectar não for encontrado no servidor,
+o SAMBA mapeará o serviço especificado nesta diretiva como alternativa.  A
+variável "%S" e o caracter "_" podem ser interessantes em algumas alternativas
+de configuração.  A opção <literal>default é um sinônimo para esta
+opção.  Caso utilize esta opção, crie o compartilhamento em modo somente
+leitura e com acesso público, caso contrário (dependendo do planejamento de
+partições e segurança do sistema de arquivos) a máquina poderá ser derrubada
+sem dificuldades.
+
+
+
+<varlistentry>
+<term><literal>username map = [arquivo]
+<listitem>
+
+Especifica um arquivo que faz o mapeamento entre nomes fornecidos por clientes
+e nomes de contas Unix locais.  Veja <xref linkend="s-samba-a-usernamemap"/>
+para mais detalhes de como configurar este recurso.
+
+
+
+<varlistentry>
+<term>obey pam restrictions = yes
+<listitem>
+
+Indica se as restrições do usuário nos módulos PAM terão efeito também no
+SAMBA.
+
+
+
+</variablelist>
+
+
+ s-samba-s-global-nivelauth">###Níveis de autenticação
+
+(esta seção contém algumas explicações que dependem do resto do conteúdo do
+guia, caso não entenda de imediato a fundo as explicações, recomendo que a leia
+novamente mais tarde).
+
+<variablelist>
+<varlistentry>
+<term/>
+<listitem>
+
+Define o nível de segurança do servidor.  Os seguintes valores são válidos:
+
+<itemizedlist>
+<listitem>
+
+<literal>share - Usada principalmente quando apenas a senha é enviada
+por compartilhamento acessado para o servidor, caso muito típico em sistemas
+<command>Lan Manager e <command>Windows for Workgroups.
+
+
+Mesmo assim o samba tenta mapear para um UID de usuário local do sistema usando
+os seguintes métodos (retirado da página de manual do samba):
+
+<orderedlist numeration="arabic">
+<listitem>
+
+Se o parâmetro <literal>guest only é usado no compartilhamento junto
+com o <literal>guest ok, o acesso é imediatamente permitido, sem
+verificar inclusive a senha.
+
+
+<listitem>
+
+Caso um nome de usuário seja enviado junto com a senha, ele é utilizado para
+mapear o UID e aplicar as permissões deste usuário (como acontece no nível de
+segurança **user**).
+
+
+<listitem>
+
+Se ele usou um nome para fazer o logon no <command>Windows este nome
+será usado como usuário local do SAMBA.  Caso ele seja diferente, você deverá
+usar o mapeamento de nomes para associar o nome remoto do nome local (veja
+<xref linkend="s-samba-a-usernamemap"/>)
+
+
+<listitem>
+
+O nome do serviço é tentado como nome de usuário.
+
+
+<listitem>
+
+O nome da máquina NetBios é tentada como nome de usuário
+
+
+<listitem>
+
+Os usuários especificados na opção <literal>user do compartilhamentos
+são utilizados (veja <xref linkend="s-samba-s-a-param"/>).
+
+
+<listitem>
+
+Caso nenhum destes métodos acima for satisfeito, o acesso é NEGADO.
+
+
+</orderedlist>
+
+Hoje em dia, o uso do nível de acesso <literal>share é raramente
+usado, porque todos os sistemas a partir do <command>Windows 95 e
+acima enviam o nome de usuário ao acessar um compartilhamento (caindo na
+segunda checagem do nível **share**), sendo equivalente a usar
+o nível **user**.  Entretanto, o nível de segurança
+**share** é recomendado para servidores onde TODO o conteúdo
+deve ter acesso público (seja leitura ou gravação) e o parâmetro <literal>guest
+shares também funciona nativamente.
+
+
+As senhas criptografadas (<literal>encrypt passwords = 1) **NÃO** funcionarão no nível **share**,
+lembre-se deste detalhe.
+
+
+<listitem>
+
+<literal>user - Este é o padrão.  O usuário precisa ter uma conta de
+usuário no <command>Linux para acessar seus compartilhamentos.  A
+mesma conta de usuário/senha deverá ser usada no <command>Windows
+para acessar seus recursos ou realizado um mapeamento de nomes de usuários
+(veja <xref linkend="s-samba-a-usernamemap"/>).  Este é o padrão do SAMBA.  No
+nível de acesso **user** o usuário precisa ser autenticado de
+qualquer forma, inclusive se for usado o parâmetro <literal>guest
+only ou <literal>user.  Os seguintes passos são usados para
+autorizar uma conexão usando o nível **user** (retirado da
+documentação do SAMBA):
+
+<itemizedlist>
+<listitem>
+
+É tentada a validação usando o nome/senha passados pelo cliente.  Se tudo
+estiver OK, a conexão é permitida.
+
+
+<listitem>
+
+Caso já tenha se autenticado anteriormente para acessar o recurso e forneceu a
+senha correta, o acesso é permitido.
+
+
+<listitem>
+
+O nome NetBIOS da máquina do cliente e qualquer nome de usuário que foi usado é
+novamente tentado junto com a senha para tentar permitir o acesso ao recurso
+compartilhado.
+
+
+<listitem>
+
+Caso o cliente tenha validado o nome/senha com o servidor e o cliente enviou
+novamente o token de validação, este nome de usuário é usado.
+
+
+<listitem>
+
+É tentada a checagem com o parâmetro **user** no
+compartilhamento (veja <xref linkend="s-samba-s-a-param"/>.
+
+
+<listitem>
+
+É verificado se o serviço é público, então a conexão é feita usando o usuário
+<literal>guest account e ignorando a senha (veja <xref linkend="s-samba-a-publico"/>).
+
+
+
+
+<listitem>
+
+<literal>domain - Neste nível, o acesso só será permitido quando a
+máquina for adicionada ao domínio com o <command>smbpasswd (<xref linkend="s-samba-c-dominio-linux"/>).  Neste nível de acesso, a conta de
+usuário será validada em um servidor PDC (controlador de domínio) e o acesso
+aos recursos das máquinas que fazem parte do domínio será feito a partir do
+PDC.  Veja <xref linkend="s-samba-c-dominio-linux"para detalhes.
+
+
+<listitem>
+
+<literal>server - A máquina samba tentara autenticar o usuário em
+outro servidor NT (ou samba).  No caso da autenticação falhar, será usado o
+nível de acesso **user** na base de usuários local (será
+necessário o arquivo de senhas criptografado do samba para que a autenticação
+local funcione, veja <xref linkend="s-samba-senhas-crypto"/>).  Este nível é
+bastante usado quando configuramos um servidor de perfis de usuários ou logon
+separado do PDC.
+
+
+
+
+
+</variablelist>
+
+
+ s-samba-s-global-log">###Log de acessos/serviços
+<variablelist>
+<varlistentry>
+<term>log file= [arquivo]
+<listitem>
+
+Define a localização e nome do arquivo de log gerado pelo samba.  As variáveis
+de expansão podem ser usadas caso o administrador queira ter um melhor controle
+dos logs gerados (veja <xref linkend="s-samba-s-varsubst"/>).
+
+
+Ex.: <literal>/var/log/samba/samba-log-%m.
+
+
+**OBS:** Se possível coloque uma extensão no
+arquivo de log gerado pelo <command>SAMBA (como
+<filename>.log</filename>).  O motivo disto é porque se estes logs forem
+rotacionados pelo <command>logrotate você terá problemas de
+recompactação múltiplas caso utilize um coringa
+<filename>samba-log-*</filename>, gerando arquivos como
+<filename>.gz.gz.gz..</filename>, lotando a tabela de arquivos do diretório e
+deixando sua máquina em um loop de compactação.
+
+
+
+<varlistentry>
+<term>max log size = [tamanho]
+<listitem>
+
+Especifica o tamanho máximo em Kb do arquivo de log gerado pelo samba.  O valor
+padrão é 5000Kb (5MB).
+
+
+
+<varlistentry>
+<term>debug pid = [valor]
+<listitem>
+
+Este processo adiciona a pid aos logs gerados pelo processo
+<command>smbd Isto é útil para depuração caso existam múltiplos
+processos rodando.  O valor padrão é **no** e a opção
+**debug timestamp** deve ser <literal>yes para esta
+opção ter efeito.
+
+
+
+<varlistentry>
+<term>debug timestamp = [valor]
+<listitem>
+
+Ativa ou desativa a gravação de data/hora nos arquivos de log gerados pelo
+samba.  O valor padrão é <literal>yes.
+
+
+
+<varlistentry>
+<term>debug level = [valor]
+<listitem>
+
+Aumenta o nível de depuração dos daemons do SAMBA de <literal>0 a
+<literal>9.  Um nível de depuração interessante e que produz uma
+quantidade razoável de dados para configuração de um
+<command>logrotate só para o SAMBA é o <literal>2,
+produzindo a lista de todos os compartilhamentos acessados, quem acessou,
+data/hora (dependendo das outras opções de depuração).  Isto permite ao
+administrador saber exatamente o que está sendo acessado e por quem, quais as
+tentativas de acesso.  Assim terá certeza que o conteúdo não está sendo
+acessado indevidamente.  O nível de depuração <literal>0 é o padrão.
+
+
+
+<varlistentry>
+<term>debug uid = [valor]
+<listitem>
+
+Este parâmetro inclui o euid, egid, uid, gid nos arquivos de log.  O valor
+padrão é <literal>no.
+
+
+
+<varlistentry>
+<term>lock directory = [diretório]
+<listitem>
+
+Define onde serão gravados os arquivos de lock gerados pelo samba.
+
+
+
+</variablelist>
+
+
+ s-samba-s-global-browsing">###Navegação no servidor/tipo de servidor
+<variablelist>
+<varlistentry>
+<term>os level=[num]
+<listitem>
+
+Especifica o nível do sistema operacional.  Este número é usado para as
+eleições netbios para definir o navegador de grupo local e controlador de
+domínio (veja <xref linkend="s-samba-s-oslevel"para detalhes).  O valor pode
+ser de 0 a 255, o padrão é 32.
+
+
+
+<varlistentry>
+<term>announce as = [sistema]
+<listitem>
+
+Selecione o nome que o <command>samba (<command>nmbd) se
+anunciará na lista de pesquisa de rede.  Os seguintes nomes podem ser usados:
+
+<itemizedlist>
+<listitem>
+
+<literal>NT Server (ou NT) - Anuncia como **Windows NT
+Server**.  Este é o padrão.
+
+
+<listitem>
+
+<literal>NT Workstation - Anuncia-se como um **NT
+Workstation**.
+
+
+<listitem>
+
+<literal>Win95 ou WfW - Anuncia-se na rede como uma estação
+**Windows 9x**, **Windows for Workgroups**,
+**Windows NT Server** e **Windows NT
+Workstation** de uma só vez.
+
+
+
+
+
+<varlistentry>
+<term>domain master = [valor]
+<listitem>
+
+Diz se o servidor tentará se tornar o navegador principal de domínio.  Os
+valores que podem ser especificados são: <literal>yes, no e auto.  O
+valor padrão é <literal>auto.  Veja <xref linkend="s-samba-dom-dmbrowser"/>.
+
+
+
+<varlistentry>
+<term>local master = [valor]
+<listitem>
+
+Diz se o servidor participará ou não das eleições para navegador local do grupo
+de trabalho (workgroup).  Os valores que podem ser especificados são:
+<literal>yes, no.  O valor padrão é <literal>yes.  Para
+vencer a eleição, o samba precisa ter o valor de <literal>os level
+maior que os demais.
+
+
+Note também que o Windows NT não aceita perder as eleições e convoca uma nova
+eleição caso ele perca.  Como esta eleição é feita via broadcasting, isso gera
+um tráfego grande na rede.  Desta forma, se tiver um computador NT na rede
+configure este valor para "no".  Veja <xref linkend="s-samba-dom-lmbrowser"/>.
+
+
+
+<varlistentry>
+<term>preferred master = [valor]
+<listitem>
+
+Diz se o servidor samba terá ou não vantagens de ganhar uma eleição local.  Se
+estiver configurado para "yes", o servidor samba pedirá uma eleição e terá
+vantagens para ganha-la.  O servidor poderá se tornar garantidamente o
+**navegador principal do domínio** se esta opção for usada em
+conjunto com **domain master = 1**.  Os valores especificados
+podem ser <literal>yes, no e auto, o padrão é
+<literal>auto.
+
+
+Antes de ajustar este valor para <literal>yes, verifique se existem
+outros servidores NetBIOS em sua rede que tem preferência para se tornar o
+master principal, pois poderá ocorrer um tráfego alto de broadcasting causado
+pelas eleições solicitadas pelas outras máquinas.
+
+
+
+</variablelist>
+
+
+ s-samba-s-global-outras">###Outros parâmetros de configuração
+<variablelist>
+<varlistentry>
+<term><literal>include
+<listitem>
+
+Inclui um outro arquivo de configuração na porção atual do arquivo de
+configuração.  Você pode utilizar variáveis de substituição, exceto
+<literal>%u, <literal>%P e <literal>%S (veja
+<xref linkend="s-samba-s-varsubst"/>).
+
+
+
+</variablelist>
+
+
+
+
+ s-samba-s-homes">###Seção <literal>[homes]
+
+Esta seção tem a função especial de disponibilizar o diretório home do usuário.
+Quando o usuário envia seu nome de login como compartilhamento é feita uma
+busca no arquivo <filename>smb.conf</filename> procurando por um nome de
+compartilhamento que confira.  Caso nenhum seja encontrado, é feita uma busca
+por um nome de usuário correspondente no arquivo
+<filename>/etc/passwd</filename>, se um nome conferir e a senha enviada também,
+o diretório de usuário é disponibilizado como um compartilhamento com o mesmo
+nome do usuário local.  O diretório home do usuário poderá ser modificado com o
+uso de mapeamento de nomes, veja <xref linkend="s-samba-a-usernamemap"/>.
+Quando o caminho do compartilhamento não for especificado, o SAMBA utilizará o
+diretório home do usuário (no <filename>/etc/passwd</filename>).
+
+
+Para maior segurança da instalação, principalmente porque o diretório home do
+usuário não é um requerimento para a autenticação de usuário, recomendo usar a
+variável de substituição <literal>%S apontando para um diretório com
+as permissões apropriadas configuradas em seu sistema, por exemplo:
+
+<screen>
+ [homes]
+  comment = Diretórios de Usuários
+  path=/pub/usuarios/%S
+
+
+Você apenas terá o trabalho extra de criar os diretórios de usuários que farão
+acesso ao sistema.  Isto não será nenhum problema após você programar um shell
+script simples que verifique os nomes de contas em
+<filename>/etc/passwd</filename> e crie os diretórios com as permissões/grupos
+adequados (isso não será abordado por este capítulo do guia, embora não seja
+complicado).  Se deseja, existem exemplos em <xref linkend="s-samba-exemplos"/>
+sobre a seção **[homes]** no arquivo de configuração.
+
+
+Os parâmetros aceitos em **[homes]** aqui são os mesmos usados
+para compartilhamentos normais (veja <xref linkend="s-samba-s-a-param"/>).
+Abaixo segue mais um exemplo de seção **[homes]**:
+
+<screen>
+[homes] 
+comment = Diretório home de usuários
+writable = yes
+public = no
+invalid users = root nobody @adm
+follow symlinks = no
+create mode = 0640
+directory mode = 0750
+
+
+A explicação de cada um dos parâmetros podem ser encontradas em <xref linkend="s-samba-s-a-param"/>.  O guia está com os parâmetros bem organizados
+em seções específicas, apenas de uma olhada para entender com o capítulo do
+SAMBA foi organizado e não terá dificuldades de se localizar.
+
+
+**OBS1:**Caso nenhum caminho de compartilhamento
+seja utilizado, o diretório home do usuário será compartilhado.
+
+
+**OBS2:**Não utilize o parâmetro
+**public yes** na seção guest, caso contrário todos os
+diretórios de usuários serão lidos por todos.  Veja <xref linkend="s-samba-a-public-access"para maiores detalhes.
+
+
+
+ s-samba-s-printers">###Seção <literal>[printers]
+
+Esta seção tem a função de disponibilizar as impressoras existentes no sistema
+(lp, lp1, lp2, etc) existentes no <filename>/etc/printcap</filename> como
+compartilhamento de sistemas Windows.  O método que os nomes de impressoras são
+pesquisados é idêntico a forma feita para a seção **[homes]**:
+Primeiro o nome do compartilhamento é pesquisado como um nome de serviço,
+depois se ele é um nome de usuário (tentando mapear o serviço disponibilizado
+em [homes]), depois será verificado a seção **[printers]**.
+
+
+Ao invés de usar este recurso, se preferir você poderá compartilhar as
+impressoras individualmente.  Para detalhes, veja <xref linkend="s-samba-i-win-linux"/>.
+
+
+**OBS:**É importante lembrar que a seção
+**[printers]** **DEVE** ser
+definida como <literal>printable usando o parâmetro
+**printable = yes** para funcionar.  O utilitário
+<command>testparm poderá ser usado para verificar problemas no
+arquivo cd configuração do SAMBA (veja <xref linkend="s-samba-s-testparm"/>).
+
+
+
+ s-samba-s-testparm">###Buscando problemas na configuração
+
+Durante o processo de configuração do SAMBA, é comum cometer erros de
+digitação, usar parâmetros em lugares indevidos, etc.  É recomendável o uso do
+<command>testparm para checar a configuração do SAMBA sempre que
+houver modificações para ter certeza nada comprometa o funcionamento que
+planejou para sua máquina.
+
+
+Para usar o <command>testparm é só digitar
+<literal>testparm.  Logo após executa-lo, analise se existem erros
+nas seções de configuração e te pedirá para pressionar &lt;ENTER&gt; para ver
+um dump do arquivo:
+
+<screen>
+Load smb config files from /etc/samba/smb.conf
+Processing section "[homes]"
+Processing section "[printers]"
+Processing section "[tmp]"
+Processing section "[cdrom]"
+Loaded services file OK.
+Press enter to see a dump of your service definitions
+
+
+A saída acima indica que está tudo OK com todas as configurações que foram
+realizadas no servidor.  É possível especificar um outro arquivo de
+configuração do SAMBA usando <literal>testparm /etc/samba/smb2.conf.
+
+
+Também é permitido simular o nome NetBIOS que fará acesso a máquina usando o
+parâmetro <literal>-L nome (que será substituído na variável
+<replaceable>%L</replaceable>).
+
+
+
+ s-samba-s-oslevel">###Níveis de sistema para eleição de rede
+
+Para selecionar qual sistema NetBIOS será o local master browse ou domain
+master browse, é usado um método bastante interessante: o de eleições.
+
+
+Quando uma nova máquina entra na rede NetBIOS, ela solicita quem é o Local
+Master Browser, caso nenhuma responda, ela força uma eleição na rede através de
+uma requisição Broadcasting especial.  Vence a eleição quem tiver o ***maior
+número***, chamado de OS Level (nível de sistema operacional).  Caso duas
+máquinas empatem, o desempate é feito usando outros critérios.
+
+
+Se você for a única máquina de um workgroup, automaticamente você será o Local
+Master Browser.  De meia em meia hora uma nova eleição é feita, forçando mais
+tráfego broadcasting na rede.  Durante este novo processo de eleição, a lista
+de computadores é atualizada; as novas máquinas são adicionadas e as desligadas
+saem da lista após 36 minutos.  Este é o motivo porque as máquinas Windows
+continuam aparecendo no ambiente de rede por algum tempo mesmo depois que
+desligadas ou porque elas não aparecem de imediato.
+
+
+O OS Level é um número que é característico de cada sistema operacional ficando
+entre 0 (mais baixo) e 255.  Os níveis de acessos dos sistemas operacionais são
+os seguintes:
+
+<screen>
+Windows for Workgroups                         1
+Windows 95                                     1
+Windows 98                                     2
+Windows 98 Second Edition                      2
+
+
+Windows 2000 Server (standalone)               16
+Windows 2000 Professional                      16
+Windows NT 4.0 Wks                             17
+Windows NT 3.51 Wks                            16
+
+
+Windows NT 3.51 Server                         32
+Windows NT 4.0 Server                          33
+Windows 2000 Server (Domain Controller)        32
+
+SAMBA                                          32
+
+
+O valor padrão do OS Level do SAMBA é 32, entretanto ele é bastante flexível
+para permitir sua mudança através do parâmetro "os level" (veja <xref linkend="s-samba-s-global-browsing"/>), isto garante que o SAMBA sempre vença
+as eleições da rede sobre qualquer outro sistema operacional.
+
+
+No caso de um servidor que estiver configurado para ser o navegador de rede,
+assim que for iniciado ele solicitará uma eleição de rede.  As regras são as
+mesmas, vence o que tiver o *maior* número.  Este número pode ser configurado
+facilmente no SAMBA para que ele sempre vença as eleições de rede, tomando
+conta da lista de máquinas.  Isto é especialmente interessante por causa da
+estabilidade do servidor <command>Linux, quando migramos de servidor
+NT ou para fornecer mais serviços de navegação, como servidor WINS.
+
+
+**OBS**: Nunca deixe um servidor NT configurado
+para ser o Local Browser ou Domain Master Browser competir com o SAMBA.  Mesmo
+que o SAMBA ganhe, o NT é um péssimo perdedor e convoca uma nova eleição para
+tentar novamente se eleger, gerando um *extremo* tráfego broadcasting em redes
+grandes.
+
+
+
+ s-samba-s-varsubst">###Variáveis de substituição
+
+Esta seção foi baseada nos dados da página de manual do samba, com adições que
+não estavam presentes na versão original e exemplos.  Existem variáveis
+especiais que podem ser usadas no arquivo de configuração do samba e são
+substituídas por parâmetros especiais no momento da conexão do usuário.  Um
+exemplo de utilização de variáveis de substituição seria mudar a localização do
+diretório home do usuário:
+
+<screen>
+[homes]
+ comment = Diretório home do usuário
+ path = /home/usuarios/%u
+
+
+Cada uma das variáveis são descritas em detalhes abaixo:
+
+<variablelist>
+<varlistentry>
+<term>%S
+<listitem>
+
+O nome do serviço atual, se existir.  Seu uso é interessante, principalmente no
+uso de diretórios homes.
+
+
+
+<varlistentry>
+<term>%P
+<listitem>
+
+O diretório raíz do serviço atual, se existir.
+
+
+
+<varlistentry>
+<term>%u
+<listitem>
+
+O nome de usuário do serviço atual, se aplicável.  Esta variável é bastante
+útil para programação de scripts e também para criar arquivos de log
+personalizados, etc.
+
+
+
+<varlistentry>
+<term>%g
+<listitem>
+
+O grupo primário do usuário %u.
+
+
+
+<varlistentry>
+<term>%U
+<listitem>
+
+O nome de usuário da seção (o nome de usuário solicitado pelo cliente, não é
+uma regra que ele será sempre o mesmo que ele recebeu).
+
+
+
+<varlistentry>
+<term>%G
+<listitem>
+
+O nome do grupo primário de %U.
+
+
+
+<varlistentry>
+<term>%H
+<listitem>
+
+O diretório home do usuário, de acordo com %u.
+
+
+
+<varlistentry>
+<term>%v
+<listitem>
+
+A versão do Samba.
+
+
+
+<varlistentry>
+<term>%h
+<listitem>
+
+O nome DNS da máquina que está executando o Samba.
+
+
+
+<varlistentry>
+<term>%m
+<listitem>
+
+O nome NetBIOS da máquina do cliente.  Isto é muito útil para log de conexões
+personalizados e outras coisas úteis.
+
+
+
+<varlistentry>
+<term>%L
+<listitem>
+
+O nome NetBIOS do servidor.  Como o servidor pode usar mais de um nome no samba
+(aliases), você poderá saber com qual nome o seu servidor está sendo acessado e
+possivelmente torna-lo o nome primário de sua máquina.
+
+
+
+<varlistentry>
+<term>%M
+<listitem>
+
+O nome DNS da máquina cliente.
+
+
+
+<varlistentry>
+<term>%N
+<listitem>
+
+O nome do seu servidor de diretórios home NIS.  Este parâmetro é obtido de uma
+entrada no seu arquivo auto.map.  Se não tiver compilado o SAMBA com a opção
+<literal>--with-automount então este valor será o mesmo de %L.
+
+
+
+<varlistentry>
+<term>%p
+<listitem>
+
+O caminho do diretório home do serviço, obtido de uma entrada mapeada no
+arquivo <filename>auto.map</filename> do NIS.  A entrada NIS do arquivo
+<filename>auto.map</filename> é dividida na forma "%N:%p".
+
+
+
+<varlistentry>
+<term>%R
+<listitem>
+
+O nível de protocolo selecionado após a negociação.  O valor retornado pode ser
+CORE, COREPLUS, LANMAN1, LANMAN2 ou NT1.
+
+
+
+<varlistentry>
+<term>%d
+<listitem>
+
+A identificação de processo do processo atual do servidor.
+
+
+
+<varlistentry>
+<term>%a
+<listitem>
+
+A arquitetura da máquina remota.  Somente algumas são reconhecidas e a resposta
+pode não ser totalmente confiável.  O <command>samba atualmente
+reconhece **Samba**, **Windows for
+Workgroups**, **Windows 95**, **Windows
+NT** e **Windows 2000**.  Qualquer outra coisa será
+mostrado como "UNKNOWN" (**desconhecido**).
+
+
+
+<varlistentry>
+<term>%I
+<listitem>
+
+O endereço IP da máquina do cliente.
+
+
+
+<varlistentry>
+<term>%T
+<listitem>
+
+A data e hora atual.
+
+
+
+<varlistentry>
+<term>%$(var_ambiente)
+<listitem>
+
+Retorna o valor da **variável de ambiente** especificada.
+
+
+
+</variablelist>
+
+
+
+

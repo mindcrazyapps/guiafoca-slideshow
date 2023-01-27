@@ -1,0 +1,852 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+ fw-iptables-outras">###Outras opções do iptables
+ fw-iptables-outras-endOD">###Especificando um endereço de origem/destino
+
+As opções <literal>-s (ou --src/--source)e <literal>-d (ou
+--dst/--destination) servem para especificar endereços de
+**origem** e **destino** respectivamente.  É
+permitido usar um endereço IP completo (como 192.168.1.1), um hostname
+(debian), um endereço fqdn (www.debian.org) ou um par
+**rede/máscara** (como 200.200.200.0/255.255.255.0 ou
+200.200.200.0/24).
+
+
+Caso um endereço/máscara não sejam especificados, é assumido
+**0/0** como padrão (todos as máquinas de todas as redes).  A
+interpretação dos endereços de origem/destino dependem do chain que está sendo
+especificado (como INPUT e OUTPUT por exemplo).
+
+
+**OBS:** Caso seja especificado um endereço fqdn
+e este resolver mais de um endereço IP, serão criadas várias regras, cada uma
+se aplicando a este endereço IP específico.  É recomendável sempre que possível
+a especificação de endereços IP's nas regras, pois além de serem muito rápidos
+(pois não precisar de resolução DNS) são mais seguros para evitar que nosso
+firewall seja enganado por um ataque de IP spoofing.
+
+<screen>
+# Bloqueia o tráfego vindo da rede 200.200.200.*:
+ iptables -A INPUT -s 200.200.200.0/24 -j DROP
+
+# Bloqueia conexões com o destino 10.1.2.3:
+iptables -A OUTPUT -d 10.1.2.3 -j DROP
+
+# Bloqueia o tráfego da máquina www.dominio.teste.org a rede 210.21.1.3
+# nossa máquina possui o endereço 210.21.1.3
+iptables -A INPUT -s www.dominio.teste.org -d 210.21.1.3 -j DROP
+
+
+
+ fw-iptables-outras-iface">###Especificando a interface de origem/destino
+
+As opções **-i** (ou --in-interface) e **-o**
+(ou --out-interface) especificam as interfaces de origem/destino de pacotes.
+Nem todos as chains aceitam as interfaces de origem/destino simultaneamente, a
+interface de entrada (-i) nunca poderá ser especificada em um chain OUTPUT e a
+interface de saída (-o) nunca poderá ser especificada em um chain INPUT.
+Abaixo uma rápida referência:
+
+<screen>
+
+          +---------------------+--------------------------------+
+  TABELA  |      CHAIN          |            INTERFACE           |
+          |                     +----------------+---------------+
+          |                     |  ENTRADA (-i)  |    SAÍDA (-o) |
++---------+---------------------+----------------+---------------+
+|         |  INPUT              |      SIM       |      NÃO      |
+| filter  |  OUTPUT             |      NÃO       |      SIM      |
+|         |  FORWARD            |      SIM       |      SIM      |
++---------+---------------------+----------------+---------------+
+|         | PREROUTING          |      SIM       |      NÃO      |
+| nat     | OUTPUT              |      NÃO       |      SIM      |
+|         | POSTROUTING         |      NÃO       |      SIM      |
++---------+---------------------+----------------+---------------+
+|         | PREROUTING          |      SIM       |      NÃO      |
+| mangle  |                     |                |               |
+|         | OUTPUT              |      NÃO       |      SIM      |
++---------+---------------------+----------------+---------------+
+
+
+O caminho do pacote na interface será determinado pelo tipo da interface e pela
+posição dos chains nas etapas de seu roteamento.  O chain OUTPUT da tabela
+filter somente poderá conter a interface de saída (veja a tabela acima).  O
+chain FORWARD da tabela filter é o único que aceita a especificação de ambas as
+interfaces, este é um ótimo chain para controlar o tráfego que passa entre
+interfaces do firewall.
+
+
+Por exemplo para bloquear o acesso do tráfego de qualquer máquina com o
+endereço 200.123.123.10 vinda da interface ppp0 (uma placa de fax-modem):
+
+<screen>
+iptables -A INPUT -s 200.123.123.10 -i ppp0 -j DROP
+
+
+A mesma regra pode ser especificada como
+
+<screen>
+iptables -A INPUT -s 200.123.123.10 -i ppp+ -j DROP
+
+
+O sinal de "+" funciona como um coringa, assim a regra terá efeito em qualquer
+interface de ppp0 a ppp9.  As interfaces ativas no momento podem ser listadas
+com o comando <command>ifconfig, mas é permitido especificar uma
+regra que faz referência a uma interface que ainda não existe, isto é
+interessante para conexões intermitentes como o PPP.  Para bloquear qualquer
+tráfego local para a Internet:
+
+<screen>
+iptables -A OUTPUT -o ppp+ -j DROP
+
+
+Para bloquear a passagem de tráfego da interface ppp0 para a interface eth1 (de
+uma de nossas redes internas):
+
+<screen>
+iptables -A FORWARD -i ppp0 -o eth1 -j DROP
+
+
+
+ fw-iptables-outras-proto">###Especificando um protocolo
+
+A opção <literal>-p (ou --protocol) é usada para especificar
+protocolos no <command>iptables.  Podem ser especificados os
+protocolos **tcp**, **udp** e
+**icmp**.  Por exemplo, para rejeitar todos os pacotes UDP
+vindos de 200.200.200.200:
+
+<screen>
+ iptables -A INPUT -s 200.200.200.200 -p udp -j DROP
+
+
+**OBS1:** Tanto faz especificar os nomes de
+protocolos em maiúsculas ou minúsculas.
+
+ fw-iptables-outras-proto-p">###Especificando portas de origem/destino
+
+As portas de origem/destino devem ser especificadas após o protocolo e podem
+ser precedidas por uma das seguintes opções:
+
+<itemizedlist>
+<listitem>
+
+<literal>--source-port ou --sport - Especifica uma porta ou faixa de
+portas de origem.
+
+
+<listitem>
+
+<literal>--destination-port ou --dport - Especifica uma porta ou
+faixa de portas de destino.
+
+
+
+
+Uma faixa de portas pode ser especificada através de
+<literal>PortaOrigem:PortaDestino:
+
+<screen>
+# Bloqueia qualquer pacote indo para 200.200.200.200 na faixa de 
+# portas 0 a 1023
+iptables -A OUTPUT -d 200.200.200.200 -p tcp --dport :1023 -j DROP
+
+
+Caso a **PortaOrigem** de uma faixa de portas não seja
+especificada, 0 é assumida como padrão, caso a **Porta
+Destino** não seja especificada, 65535 é assumida como padrão.  Caso
+precise especificar diversas regras que envolvam o tratamento de portas
+diferentes, recomendo da uma olhada em <xref linkend="fw-iptables-mod-multiport"/>, antes de criar um grande número de
+regras.
+
+
+
+ fw-iptables-outras-proto-micmp">###Especificando mensagens do protocolo ICMP
+
+O protocolo ICMP não possui portas, mas é possível fazer um controle maior
+sobre o tráfego ICMP que entra/sai da rede através da especificação dos tipos
+de mensagens ICMP.  Os tipos de mensagens devem ser especificados com a opção
+"--icmp-type **CódigoICMP**" logo após a especificação do
+protocolo icmp:
+
+<screen>
+iptables -A INPUT -s 200.123.123.10 -p icmp --icmp-type time-exceeded -i ppp+ -j DROP
+
+
+A regra acima rejeitará mensagens ICMP do tipo "time-exceeded" (tempo de
+requisição excedido) que venham do endereço 200.123.123.10 através da interface
+**ppp+**.
+
+
+Alguns tipos de mensagens ICMP são classificados por categoria (como o próprio
+"time-exceeded"), caso a categoria "time-exceeded" seja especificada, todas as
+mensagens daquela categoria (como "ttl-zero-during-transit",
+"ttl-zero-during-reassembly") conferirão na regra especificada.Os tipos de
+mensagens ICMP podem ser obtidos com o comando <literal>iptables -p icmp
+-h:
+
+<screen>
+echo-reply (pong)
+destination-unreachable
+   network-unreachable
+   host-unreachable
+   protocol-unreachable
+   port-unreachable
+   fragmentation-needed
+   source-route-failed
+   network-unknown
+   host-unknown
+   network-prohibited
+   host-prohibited
+   TOS-network-unreachable
+   TOS-host-unreachable
+   communication-prohibited
+   host-precedence-violation
+   precedence-cutoff
+source-quench
+redirect
+   network-redirect
+   host-redirect
+   TOS-network-redirect
+   TOS-host-redirect
+echo-request (ping)
+router-advertisement
+router-solicitation
+time-exceeded (ttl-exceeded)
+   ttl-zero-during-transit
+   ttl-zero-during-reassembly
+parameter-problem
+   ip-header-bad
+   required-option-missing
+timestamp-request
+timestamp-reply
+address-mask-request
+address-mask-reply
+
+
+**OBS1:** Não bloqueie mensagens do tipo
+"host-unreachable" e "source-quench", pois terá sérios problemas no controle de
+suas conexões.  A primeira diz que o destino está inalcançavel e a segunda que
+o host está sobrecarregado, assim os pacotes devem ser enviados mais
+lentamente.
+
+
+
+ fw-iptables-outras-proto-syn">###Especificando pacotes syn
+
+Pacotes syn são usados para iniciarem uma conexão, o uso da opção --syn serve
+para especificar estes tipos de pacotes.  Desta maneira é possível bloquear
+somente os pacotes que iniciam uma conexão, sem afetar os pacotes restantes.
+Para que uma conexão ocorra é necessário que a máquina obtenha a resposta a
+pacotes syn enviados, caso ele seja bloqueado a resposta nunca será retornada e
+a conexão não será estabelecida.
+
+<screen>
+iptables -A INPUT -p tcp --syn --dport 23 -i ppp+ -j DROP
+
+
+A regra acima bloqueia (-j DROP) qualquer tentativa de conexão (--syn) vindas
+da interface ppp+ ao telnet (--dport 23) da máquina local, conexões já
+efetuadas ão são afetadas por esta regra.  A opção --syn somente pode ser
+especificada para o protocolo tcp.
+
+
+**ATENÇÃO:** - A situação de passagem de pacotes
+durante deve ser levada em conta durante a inicialização do firewall,
+bloqueando a passagem de pacotes durante o processo de configuração, criando
+regras que bloqueiam a passagem de pacotes (exceto para a interface loopback)
+até que a configuração do firewall esteja completa, pode ser uma solução
+eficiente.
+
+
+Outra alternativa segura é configurar as regras de firewall antes das
+interfaces de rede se tornarem ativas (usando a opção "pre-up comando_firewall"
+no arquivo de configuração <filename>/etc/network/interfaces</filename> em
+sistemas <command>Debian.
+
+
+
+
+
+ fw-iptables-outras-fragmentos">###Especificando fragmentos
+
+A opção "-f" (ou --fragment) permite especificar regras que confiram com
+fragmentos.  Fragmentos são simplesmente um pacote maior dividido em pedaços
+para poder ser transmitido via rede TCP/IP para remontagem do pacote pela
+máquina de destino.
+
+
+Somente o primeiro fragmento possui detalhes de cabeçalho para ser processado,
+os segundos e seguintes somente possuem alguns cabeçalhos necessários para dar
+continuidade ao processo de remontagem do pacote no destino.
+
+
+Uma regra como
+
+<screen>
+iptables -A INPUT -s 200.200.200.1 -f -j DROP
+
+
+derrubará os fragmentos de 200.200.200.1 derrubará o segundo pacote e pacotes
+seguintes enviados por 200.200.200.1 até nós.
+
+
+**OBS1:** Note que se o cabeçalho do pacote não
+tiver detalhes suficientes para checagem de regras no
+<command>iptables, a regra simplesmente não ira conferir.
+
+
+**OBS2:** Não é preciso especificar a opção "-f"
+para conexões NAT, pois os pacotes são remontados antes de entrarem no código
+de filtragem.
+
+
+**OBS3:** A opção "-f" também pode ser usada
+para evitar o flood por fragmentos (bomba de fragmentos) que, dependendo da
+intensidade, podem até travar a máquina.
+
+
+
+ fw-iptables-outras-excessoes">###Especificando uma exceção
+
+Muitos parâmetros (como o endereço de origem/destino, protocolo, porta,
+mensagens ICMP, fragmentos, etc) podem ser precedidos pelo sinal "!"  que
+significa exceção.  Por exemplo:
+
+<screen>
+iptables -t filter -A INPUT ! -s 200.200.200.10 -j DROP
+
+
+Diz para rejeitar todos os pacotes EXCETO os que vem do endereço
+<filename>200.200.200.10</filename>.
+
+<screen>
+iptables -A INPUT -p tcp ! --syn -s 200.200.200.10 ! -i eth0 -j DROP
+
+
+Diz para bloquear todos os pacotes EXCETO os que iniciam conexões (!  --syn),
+EXCETO para pacotes vindos pela interface eth0 (!  -i eth0).
+
+<screen>
+iptables -A INPUT -s 200.200.200.10 ! -p tcp -j DROP
+
+
+Bloqueia todos os pacotes vindos de 200.200.200.10, EXCETO os do protocolo tcp.
+
+
+
+ fw-iptables-outras-alvo">###Especificando um alvo
+
+O alvo (-j) é o destino que um pacote terá quando conferir com as condições de
+uma regra, um alvo pode dizer para bloquear a passagem do pacote (-j DROP),
+aceitar a passagem do pacote (-j ACCEPT), registrar o pacote no sistema de log
+(-j LOG), rejeitar o pacote (-j REJECT), redirecionar um pacote -j REDIRECT,
+retornar ao chain anterior sem completar o processamento no chain atual (-j
+RETURN), passar para processamento de programas externos (-j QUEUE), fazer
+source nat (-j SNAT), destination nat (-j DNAT), etc.  Podem existir mais
+alvos, pois o <command>iptables é modularizável, e módulos que
+acrescentam mais funções podem ser carregados em adição aos já existentes no
+kernel.
+
+
+Nos exemplos anteriores vimos o uso de diversos alvos como o DROP e o ACCEPT.
+Apenas farei uma breve referência sobre os alvos mais usados em operações
+comuns dos chains.  Os alvos REDIRECT, SNAT e DNAT serão explicados em uma
+seção seguinte:
+
+<variablelist>
+<varlistentry>
+<term>ACCEPT
+<listitem>
+
+O pacote é ACEITO e o processamento das regras daquele chains é concluído.
+Pode ser usado como alvo em todos os chains de todas as tabelas do
+<command>iptables e também pode ser especificado na política padrão
+das regras do firewall (veja <xref linkend="fw-iptables-chains-P"/>).
+
+
+
+<varlistentry>
+<term>DROP
+<listitem>
+
+Rejeita o pacote e o processamento das regras daquele chain é concluído.  Pode
+ser usado como alvo em todos os chains de todas as tabelas do
+<command>iptables e também pode ser especificado na política padrão
+das regras do firewall (veja <xref linkend="fw-iptables-chains-P"/>).
+
+
+
+<varlistentry>
+<term>REJECT
+<listitem>
+
+Este é um módulo opcional que faz a mesma função do alvo
+**DROP** com a diferença de que uma mensagem ICMP do tipo
+"icmp-port-unreachable" (TCP/UDP) ou "host-unreachable" (ICMP) é retornada para
+a máquina de origem.  Pode ser usado como alvo somente nos chains da tabela
+(não como política padrão).
+
+
+
+<varlistentry>
+<term>LOG
+<listitem>
+
+Este módulo envia uma mensagem ao <command>syslog caso a regra
+confira, o processamento continua normalmente para a próxima regra (o pacote
+não é nem considerado ACEITO ou REJEITADO).
+
+
+
+<varlistentry>
+<term>RETURN
+<listitem>
+
+Retorna o processamento do chain anterior sem processar o resto do chain atual.
+
+
+
+<varlistentry>
+<term>QUEUE
+<listitem>
+
+Passa o processamento para um programa a nível de usuário.
+
+
+
+</variablelist>
+ fw-iptables-outras-alvo-REJECT">###Alvo REJECT
+
+Para ser usado, o módulo <filename>ipt_REJECT</filename> deve ser compilado no
+kernel ou como módulo.  Este alvo rejeita o pacote (como o
+**DROP**) e envia uma mensagem ICMP do tipo
+"icmp-port-unreachable" como padrão para a máquina de origem.
+
+
+É um alvo interessante para bloqueio de portas TCP, pois em alguns casos da a
+impressão que a máquina não dispõe de um sistema de firewall (o alvo DROP causa
+uma parada de muito tempo em alguns portscanners e tentativas de conexão de
+serviços, revelando imediatamente o uso de um sistema de firewall pela
+máquina).  O alvo REJECT vem dos tempos do ipchains e somente pode ser usado na
+tabela **filter**.  Quando um pacote confere, ele é rejeitado
+com a mensagem ICMP do tipo "port unreachable", é possível especificar outro
+tipo de mensagem ICMP com a opção **--reject-with tipo_icmp**.
+
+
+**OBS:** REJECT pode ser usado somente como alvo
+na tabela filter e não é possível especifica-lo como política padrão do chain
+filter (como acontecia no <command>ipchains.  Uma forma alternativa é
+inserir como última regra uma que pegue todos os pacotes restantes daquele
+chain e tenha como alvo REJECT (como <literal>iptables -A INPUT -j
+REJECT), desta forma ele nunca atingirá a política padrão do chain.
+
+<screen>
+# Rejeita pacotes vindos de 200.200.200.1 pela interface ppp0: 
+iptables -A INPUT -s 200.200.200.1 -i ppp+ -j REJECT
+
+
+
+ fw-iptables-outras-alvo-LOG">###Especificando LOG como alvo
+
+Este alvo é usado para registrar a passagem de pacotes no
+<command>syslog do sistema.  É um alvo muito interessante para ser
+usado para regras que bloqueiam determinados tráfegos no sistema (para que o
+administrador tome conhecimento sobre tais tentativas), para regras de fim de
+chain (quando você tem um grande conjunto de regras em um firewall restritivo e
+não sabe onde suas regras estão sendo bloqueadas), para satisfazer sua
+curiosidade, etc.
+
+<screen>
+# Para registrar o bloqueio de pacotes vindos de 200.200.200.1 pela interface ppp0
+iptables -A INPUT -s 200.200.200.1 -i ppp+ -j LOG
+# Para efetuar o bloqueio
+iptables -A INPUT -s 200.200.200.1 -i ppp+ -j REJECT
+
+
+Note que no exemplo anterior a regra que registra o pacote (-j LOG) deve
+aparecer antes da regra que REJEITA (-j REJECT), caso contrário a regra de LOG
+nunca funcionará.  A regra que REJEITA poderia também ser trocada por uma regra
+que ACEITA, caso queira registrar um pacote que deve ser aceito (se a política
+padrão do seu firewall for restritiva (-P DROP).  A única coisa que muda nas
+regras de log é o alvo da regra, isto facilita a implementação de grandes
+conjuntos de regras de firewall.
+
+
+A regra acima mostrará a seguinte saída no <command>syslog do
+sistema:
+
+<screen>
+Aug 25 10:08:01 debian kernel: IN=ppp0 OUT= MAC=10:20:30:40:50:60:70:80:90:00:00:00:08:00 SRC=200.200.200.1 DST=200.210.10.10 LEN=61 TOS=0x00 PREC=0x00 TTL=64 ID=0 DF PROTO=UDP SPT=1031 DPT=53 LEN=41
+
+
+Os campos possuem o seguinte significado:
+
+<variablelist>
+<varlistentry>
+<term>Aug 25 10:08:01
+<listitem>
+
+Mês, dia e hora do registro do pacote.
+
+
+
+<varlistentry>
+<term>debian
+<listitem>
+
+Nome do computador que registrou o pacote.
+
+
+
+<varlistentry>
+<term>kernel:
+<listitem>
+
+Daemon que registrou a mensagem, no caso o <command>iptables faz
+parte do próprio kernel.
+
+
+
+<varlistentry>
+<term>IN=ppp0
+<listitem>
+
+Especifica a interface de entrada (de onde o pacote veio).
+
+
+
+<varlistentry>
+<term>OUT=
+<listitem>
+
+Especifica a interface de saída (para onde o pacote foi).
+
+
+
+<varlistentry>
+<term>MAC=10:20:30:40:50:60:70:80:90:00:00:00:08:00
+<listitem>
+
+Endereço mac da interface de rede (pode ser obtido com <literal>arp
+interface).
+
+
+
+<varlistentry>
+<term>SRC=200.200.200.1
+<listitem>
+
+Endereço de origem do pacote.
+
+
+
+<varlistentry>
+<term>DST=200.210.10.10
+<listitem>
+
+Endereço de destino do pacote.
+
+
+
+<varlistentry>
+<term>SEQ=234234343
+<listitem>
+
+Número de seqüência da recepção.  É ativado com a opção
+**--log-tcp-sequence**.
+
+
+
+<varlistentry>
+<term>LEN=61
+<listitem>
+
+Tamanho em bytes do pacote IP.
+
+
+
+<varlistentry>
+<term>TOS=0x00
+<listitem>
+
+Prioridade do cabeçalho TOS (Tipo).  Veja a seção <xref linkend="fw-iptables-mangle-TOS"para mais detalhes.
+
+
+
+<varlistentry>
+<term>PREC=0x00
+<listitem>
+
+Prioridade do cabeçalho TOS (Precedência).  Veja a seção <xref linkend="fw-iptables-mangle-TOS"para mais detalhes.
+
+
+
+<varlistentry>
+<term>TTL=64
+<listitem>
+
+Tempo de vida do pacote.  No exemplo, 64 roteadores (hops).
+
+
+
+<varlistentry>
+<term>ID=0
+<listitem>
+
+Identificação única destes datagrama.  Esta identificação também é usada pelos
+fragmentos seguintes deste pacote.
+
+
+
+<varlistentry>
+<term>DF
+<listitem>
+
+Opção "Don't fragment" (não fragmentar) do pacote.  Usada quando o pacote é
+pequeno o bastante para não precisar ser fragmentado.
+
+
+
+<varlistentry>
+<term>MF
+<listitem>
+
+Opção "More Fragments" (mais fragmentos) estão para ser recebidos.
+
+
+
+<varlistentry>
+<term>FRAG=100
+<listitem>
+
+Tamanho do fragmento especificado em pacotes de 8 bits.  No exemplo acima, o
+pacote tem o tamanho de 800 bytes (100*8).
+
+
+
+<varlistentry>
+<term>PROTO=UDP
+<listitem>
+
+Nome do protocolo.  Pode ser TCP, UDP ou ICMP
+
+
+
+<varlistentry>
+<term>SPT=1031
+<listitem>
+
+Porta de origem da requisição.
+
+
+
+<varlistentry>
+<term>DPT=53
+<listitem>
+
+Porta de destino da requisição.
+
+
+
+<varlistentry>
+<term>LEN=41
+<listitem>
+
+Tamanho do pacote.
+
+
+
+</variablelist>
+
+O log acima mostra uma consulta DNS (porta destino 53) para nossa máquina
+(INPUT) de 200.200.200.1 para 200.210.10.10.
+
+
+O problema é que em um grande número de regras será difícil saber qual regra
+conferiu (pois teríamos que analisar o endereço/porta origem/destino) e o
+destino do pacote (se ele foi ACEITO ou BLOQUEADO) pois você pode ter regras
+para ambas as situações.  Por este motivo existem algumas opções úteis que
+podemos usar com o alvo LOG:
+
+<variablelist>
+<varlistentry>
+<term>--log-prefix "descrição"
+<listitem>
+
+Permite especificar uma descrição para a regra do firewall de até 29
+caracteres.  Caso tiver espaços, devem ser usadas "aspas".
+
+
+
+<varlistentry>
+<term>--log-level nível
+<listitem>
+
+Especifica o nível da mensagem no <command>syslog.  Veja os níveis na
+seção <xref linkend="log-syslogd-exemplo"do guia.
+
+
+
+<varlistentry>
+<term>--log-tcp-options
+<listitem>
+
+Registra campos do cabeçalho TCP nos logs do sistema.
+
+
+
+<varlistentry>
+<term>--log-ip-options
+<listitem>
+
+Registra campos do cabeçalho IP nos logs do sistema
+
+
+
+<varlistentry>
+<term>--log-tcp-sequence
+<listitem>
+
+Registra os números de seqüencia TCP.  Evite ao máximo o uso desta opção, pois
+a seqüencia de números TCP pode ser a chave para um seqüestro de seção ou IP
+spoofing em seu sistema caso algum usuário tenha acesso a estes logs.  Caso
+utilize tcp/ip em servidores públicos, o uso desta opção ajudará a entender bem
+os ataques DoS causados por syn-flood e porque ativar os SynCookies (veja <xref linkend="fw-iptables-mod-limit-synflood"/>).
+
+
+
+</variablelist>
+
+**OBS1:**Lembre-se que estas opções são
+referentes ao alvo LOG e devem ser usadas após este, caso contrário você terá
+um pouco de trabalho para analisar e consertar erros em suas regras do
+firewall.
+
+
+**OBS2:**Caso esteja usando o firewall em um
+servidor público, recomendo associar um limite a regra de log, pois um ataque
+poderia causar um DoS enchendo sua partição.  Leia mais sobre isso em <xref linkend="fw-iptables-mod-limit"/>.
+
+<screen>
+# Complementando o exemplo anterior:
+# Para registrar o bloqueio de pacotes vindos de 200.200.200.1 pela interface ppp0
+iptables -A INPUT -s 200.200.200.1 -i ppp+ -j LOG --log-prefix "FIREWALL: Derrubado "
+# Para efetuar o bloqueio
+iptables -A INPUT -s 200.200.200.1 -i ppp+ -j REJECT
+
+
+Retornará a seguinte mensagem no syslog:
+
+<screen>
+Aug 25 10:08:01 debian kernel: FIREWALL: Derrubado IN=ppp0 OUT= MAC=10:20:30:40:50:60:70:80:90:00:00:00:08:00 SRC=200.200.200.1 DST=200.210.10.10 LEN=61 TOS=0x00 PREC=0x00 TTL=64 ID=0 DF PROTO=UDP SPT=1031 DPT=53 LEN=41
+
+
+Agora você sabe o que aconteceu com o pacote (Rejeitado).  A padronização de
+mensagens de firewall é também importante para a criação de scripts de análise
+que poderão fazer a análise dos logs do seu firewall (para criação de
+estatísticas que podem servir como base para a criação de novas regras de
+firewall ou eliminação de outras).
+
+
+**OBS:** Se você sente falta da função "-l" do
+<command>ipchains que combina o alvo e log na mesma regra você pode
+criar um alvo como o seguinte:
+
+<screen>
+iptables -N log-drop
+iptables -A log-drop -j LOG
+iptables -A log-drop -j DROP
+
+
+E usar "log-drop" como alvo em suas regras.  Mesmo assim esta solução é
+"limitada" em relação a "-l" do <command>ipchains porque o
+<command>iptables não inclui detalhes de qual chain bloqueou o
+pacote/qual pacote foi bloqueado, assim é necessário a especificação da opção
+**--log-prefix** para as mensagens se tornarem mais
+compreensíveis.  Esta limitação pode ser contornada utilizando um firewall
+feito em linguagem shell script, desta forma você terá um controle maior sobre
+o seu programa usando funções e integração com outros utilitários.
+
+
+
+ fw-iptables-outras-alvo-RETURN">###Especificando RETURN como alvo
+
+O alvo RETURN diz ao <command>iptables interromper o processamento no
+chain atual e retornar o processamento ao chain anterior.  Ele é útil quando
+criamos um chain que faz um determinado tratamento de pacotes, por exemplo
+bloquear conexões vindas da internet para portas baixas, exceto para um
+endereço IP específico.  Como segue:
+
+<screen>
+1-) iptables -t filter -A INPUT -i ppp0 -j internet
+2-) iptables -t filter -j ACCEPT
+3-) iptables -t filter -N internet
+4-) iptables -t filter -A internet -s www.debian.org -p tcp --dport 80 -j RETURN
+5-) iptables -t filter -A internet -p tcp --dport 21 -j DROP
+6-) iptables -t filter -A internet -p tcp --dport 23 -j DROP
+7-) iptables -t filter -A internet -p tcp --dport 25 -j DROP
+8-) iptables -t filter -A internet -p tcp --dport 80 -j DROP
+
+
+Quando um pacote com o endereço <filename>www.debian.org</filename> tentando
+acessar a porta www (80) de nossa máquina através da internet (via interface
+ppp0), o chain número 1 confere, então o processamento continua no chain número
+4, o chain número 4 confere então o processamento volta para a regra número 2,
+que diz para aceitar o pacote.
+
+
+Agora se um pacote vem com o endereço <filename>www.dominio.com.br</filename>
+tentando acessar a porta www *80) de nossa máquina através da internet (via
+interface ppp0), o chain número 1 confere, então o processamento continua no
+chain número 4, que não confere.  O mesmo acontece com os chains 5, 6 e 7.  O
+chain número 8 confere, então o acesso é bloqueado.
+
+
+Como pode notou, o alvo RETURN facilita bastante a construção das regras do seu
+firewall, caso existam máquinas/redes que sejam exceções as suas regras.  Se
+ela não existisse, seria necessário especificar diversas opções -s, -d, etc
+para poder garantir o acesso livre a determinadas máquinas.
+
+
+
+
+
+ fw-iptables-outras-save-restore">###Salvando e Restaurando regras
+
+As regras que você está trabalhosamente criando e testando manualmente enquanto
+manipula o <command>iptables podem ser salvas de 2 formas; uma delas
+é escrevendo um shell script que tenha todos os comandos, um por linha.  Isto é
+recomendado quando tem um firewall grande e que exige uma boa padronização de
+regras, bem como sua leitura, comentários.  O script shell também permite o uso
+de funções presente no interpretador de comando, portanto se você é uma pessoa
+que gosta de interagir com as funções do shell e deixar as coisas mais
+flexíveis, prefira esta opção.
+
+
+A outra forma é usando as ferramentas <command>iptables-save e
+<command>iptables-restore baseada na idéia do
+<command>ipchains-save e <command>ipchains-restore.  O
+<command>iptables-save deve ser usado sempre que modificar regras no
+firewall iptables da seguinte forma:
+
+<screen>
+iptables-save &gt;/dir/iptables-regras
+
+
+Uma das vantagens do uso do <command>iptables-save é ele também
+salvar os contadores de chains, ou seja, a quantidade de pacotes que conferiram
+com a regra.  Isto também pode ser feito com algumas regras adicionais em seu
+shell script, caso tenha interesse nesses contadores para estatísticas ou
+outros tipos de relatórios.
+
+
+Para restaurar as regras salvas, utilize o comando:
+
+<screen>
+iptables-restore &lt;/dir/iptables-regras
+
+
+
+
+

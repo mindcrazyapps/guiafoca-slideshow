@@ -1,0 +1,664 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+ fw-iptables-intro">###Introdução
+
+O **Firewall** é um programa que como objetivo proteger a
+máquina contra acessos indesejados, tráfego indesejado, proteger serviços que
+estejam rodando na máquina e bloquear a passagem de coisas que você não deseja
+receber (como conexões vindas da Internet para sua segura rede local, evitando
+acesso aos dados corporativos de uma empresa ou a seus dados pessoais).  No
+kernel do Linux 2.4, foi introduzido o firewall <command>iptables
+(também chamado de netfilter) que substitui o <command>ipchains dos
+kernels da série 2.2.  Este novo firewall tem como vantagem ser muito estável
+(assim como o <command>ipchains e <command>ipfwadm),
+confiável, permitir muita flexibilidade na programação de regras pelo
+administrador do sistema, mais opções disponíveis ao administrador para
+controle de tráfego, controle independente do tráfego da rede local/entre
+redes/interfaces devido a nova organização das etapas de roteamento de pacotes.
+
+
+O <command>iptables é um firewall em nível de pacotes e funciona
+baseado no endereço/porta de origem/destino do pacote, prioridade, etc.  Ele
+funciona através da comparação de regras para saber se um pacote tem ou não
+permissão para passar.  Em firewalls mais restritivos, o pacote é bloqueado e
+registrado para que o administrador do sistema tenha conhecimento sobre o que
+está acontecendo em seu sistema.
+
+
+Ele também pode ser usado para modificar e monitorar o tráfego da rede, fazer
+NAT (masquerading, source nat, destination nat), redirecionamento de pacotes,
+marcação de pacotes, modificar a prioridade de pacotes que chegam/saem do seu
+sistema, contagem de bytes, dividir tráfego entre máquinas, criar proteções
+anti-spoofing, contra syn flood, DoS, etc.  O tráfego vindo de máquinas
+desconhecidas da rede pode também ser bloqueado/registrado através do uso de
+simples regras.  As possibilidades oferecidas pelos recursos de filtragem
+<command>iptables como todas as ferramentas UNIX maduras dependem de
+sua imaginação, pois ele garante uma grande flexibilidade na manipulação das
+regras de acesso ao sistema, precisando apenas conhecer quais interfaces o
+sistema possui, o que deseja bloquear, o que tem acesso garantido, quais
+serviços devem estar acessíveis para cada rede, e iniciar a construção de seu
+firewall.
+
+
+O <command>iptables ainda tem a vantagem de ser modularizável,
+funções podem ser adicionadas ao firewall ampliando as possibilidades
+oferecidas.  Usei por 2 anos o <command>ipchains e afirmo que este é
+um firewall que tem possibilidades de gerenciar tanto a segurança em máquinas
+isoladas como roteamento em grandes organizações, onde a passagem de tráfego
+entre redes deve ser minuciosamente controlada.
+
+
+Um firewall não funciona de forma automática (instalando e esperar que ele faça
+as coisas por você), é necessário pelo menos conhecimentos básicos de rede
+tcp/ip, roteamento e portas para criar as regras que farão a segurança de seu
+sistema.  A segurança do sistema depende do controle das regras que serão
+criadas por você, as falhas humanas são garantia de mais de 95% de sucesso nas
+invasões.
+
+
+Enfim o <command>iptables é um firewall que agradará tanto a pessoas
+que desejam uma segurança básica em seu sistema, quando administradores de
+grandes redes que querem ter um controle minucioso sobre o tráfego que passam
+entre suas interfaces de rede (controlando tudo o que pode passar de uma rede a
+outra), controlar o uso de tráfego, monitoração, etc.
+
+ fw-iptables-versao">###Versão
+
+É assumido que esteja usando a versão 1.2.3 do <command>iptables e
+baseadas nas opções do kernel 2.4.16 (sem o uso de módulos experimentais).  As
+explicações contidas aqui podem funcionar para versões posteriores, mas é
+recomendável que leia a documentação sobre modificações no programa (changelog)
+em busca de mudanças que alterem o sentido das explicações fornecidas aqui.
+
+
+
+ fw-iptables-historia">###Um resumo da história do iptables
+
+O <command>iptables é um código de firewall das versões 2.4 do
+kernel, que substituiu o <command>ipchains (presente nas séries 2.2
+do kernel).  Ele foi incluído no kernel da série 2.4 em meados de Junho/Julho
+de 1999.
+
+
+A história do desenvolvimento (desde o porte do <command>ipfw do
+<command>BSD para o <command>Linux até o
+<command>iptables (que é a quarta geração de firewalls do kernel)
+está disponível no documento, <literal>Netfilter-howto.
+
+
+
+ fw-iptables-caracteristicas">###Características do firewall iptables
+<itemizedlist>
+<listitem>
+
+Especificação de portas/endereço de origem/destino
+
+
+<listitem>
+
+Suporte a protocolos TCP/UDP/ICMP (incluindo tipos de mensagens icmp)
+
+
+<listitem>
+
+Suporte a interfaces de origem/destino de pacotes
+
+
+<listitem>
+
+Manipula serviços de proxy na rede
+
+
+<listitem>
+
+Tratamento de tráfego dividido em chains (para melhor controle do tráfego que
+entra/sai da máquina e tráfego redirecionado.
+
+
+<listitem>
+
+Permite um número ilimitado de regras por chain
+
+
+<listitem>
+
+Muito rápido, estável e seguro
+
+
+<listitem>
+
+Possui mecanismos internos para rejeitar automaticamente pacotes duvidosos ou
+mal formados.
+
+
+<listitem>
+
+Suporte a módulos externos para expansão das funcionalidades padrões oferecidas
+pelo código de firewall
+
+
+<listitem>
+
+Suporte completo a roteamento de pacotes, tratadas em uma área diferente de
+tráfegos padrões.
+
+
+<listitem>
+
+Suporte a especificação de tipo de serviço para priorizar o tráfego de
+determinados tipos de pacotes.
+
+
+<listitem>
+
+Permite especificar exceções para as regras ou parte das regras
+
+
+<listitem>
+
+Suporte a detecção de fragmentos
+
+
+<listitem>
+
+Permite enviar alertas personalizados ao <command>syslog sobre o
+tráfego aceito/bloqueado.
+
+
+<listitem>
+
+Redirecionamento de portas
+
+
+<listitem>
+
+Masquerading
+
+
+<listitem>
+
+Suporte a SNAT (modificação do endereço de origem das máquinas para um único IP
+ou faixa de IP's).
+
+
+<listitem>
+
+Suporte a DNAT (modificação do endereço de destino das máquinas para um único
+IP ou fixa de IP's)
+
+
+<listitem>
+
+Contagem de pacotes que atravessaram uma interface/regra
+
+
+<listitem>
+
+Limitação de passagem de pacotes/conferência de regra (muito útil para criar
+proteções contra, syn flood, ping flood, DoS, etc).
+
+
+
+
+
+ fw-iptables-ficha">###Ficha técnica
+
+Pacote: <systemitem role="package">iptables</systemitem>
+
+<itemizedlist>
+<listitem>
+
+<literal>iptables - Sistema de controle principal para protocolos
+ipv4
+
+
+<listitem>
+
+<literal>ip6tables - Sistema de controle principal para protocolos
+ipv6
+
+
+<listitem>
+
+<literal>iptables-save - Salva as regras atuais em um arquivo
+especificado como argumento.  Este utilitário pode ser dispensado por um shell
+script contendo as regras executado na inicialização da máquina.
+
+
+<listitem>
+
+<literal>iptables-restore - Restaura regras salvas pelo utilitário
+<command>iptables-save.
+
+
+
+
+
+ fw-iptables-hwreq">###Requerimentos
+
+É necessário que o seu kernel tenha sido compilado com suporte ao
+<command>iptables (veja <xref linkend="fw-iptables-supkernel"/>.  O
+requerimento mínimo de memória necessária para a execução do
+<command>iptables é o mesmo do kernel 2.4 (4MB).  Dependendo do
+tráfego que será manipulado pela(s) interface(s) do firewall ele poderá ser
+executado com folga em uma máquina 386 SX com 4MB de RAM.
+
+
+Como as configurações residem no kernel não é necessário espaço extra em disco
+rígido para a execução deste utilitário.
+
+
+
+ fw-iptables-logs">###Arquivos de logs criados pelo iptables
+
+Todo tráfego que for registrado pelo <command>iptables é registrado
+por padrão no arquivo <filename>/var/log/kern.log</filename>.
+
+
+
+ fw-iptables-install">###Instalação
+
+<literal>apt-get install iptables
+
+
+O pacote <systemitem role="package">iptables</systemitem> contém o utilitário
+<command>iptables (e <command>ip6tables para redes ipv6)
+necessários para inserir suas regras no kernel.  Se você não sabe o que é ipv6,
+não precisará se preocupar com o utilitário <command>ip6tables por
+enquanto.
+
+
+
+ fw-iptables-contribuindo">###Enviando Correções/Contribuindo com o projeto
+
+A página principal do projeto é <literal>("http://www.w3.org/1999/xlink) [](http://netfilter.filewatcher.org">http://netfilter.filewatcher.org.
+Sugestões podem ser enviadas para a lista de desenvolvimento oficial do
+<command>iptables: <literal>("http://www.w3.org/1999/xlink) [](http://lists.samba.org">http://lists.samba.org.
+
+
+
+ fw-iptables-oldfw">###O que aconteceu com o <command>ipchains e <command>ipfwadm?
+
+O <command>iptables faz parte da nova geração de firewalls que
+acompanha o kernel 2.4, mas o suporte ao <command>ipchains e
+<command>ipfwadm ainda será mantido através de módulos de
+compatibilidade do kernel até 2004.  Seria uma grande falta de consideração
+retirar o suporte a estes firewalls do kernel como forma de obrigar a
+"aprenderem" o <command>iptables (mesmo o suporte sendo removido após
+este período, acredito que criarão patches "externos" para futuros kernels que
+não trarão mais este suporte).  Se precisa do suporte a estes firewalls antes
+de passar em definitivo para o <command>iptables leia <xref linkend="fw-iptables-supkernel"/>.
+
+
+Se você é um administrador que gosta de explorar todos os recursos de um
+firewall, usa todos os recursos que ele oferece ou mantém uma complexa rede
+corporativa, tenho certeza que gostará do <command>iptables.
+
+
+
+ fw-iptables-tiposfw">###Tipos de firewalls
+
+Existem basicamente dois tipos de firewalls:
+
+<itemizedlist>
+<listitem>
+
+<literal>nível de aplicação - Este tipo de firewall analisam o
+conteúdo do pacote para tomar suas decisões de filtragem.  Firewalls deste tipo
+são mais intrusivos (pois analisam o conteúdo de tudo que passa por ele) e
+permitem um controle relacionado com o conteúdo do tráfego.  Alguns firewalls
+em nível de aplicação combinam recursos básicos existentes em firewalls em
+nível de pacotes combinando as funcionalidade de controle de tráfego/controle
+de acesso em uma só ferramenta.  Servidores proxy, como o
+<command>squid, são um exemplo deste tipo de firewall.
+
+
+<listitem>
+
+<literal>nível de pacotes - Este tipo de firewall toma as decisões
+baseadas nos parâmetros do pacote, como porta/endereço de origem/destino,
+estado da conexão, e outros parâmetros do pacote.  O firewall então pode negar
+o pacote (DROP) ou deixar o pacote passar (ACCEPT).  O
+<command>iptables é um excelente firewall que se encaixa nesta
+categoria.
+
+
+Firewall em nível de pacotes é o assunto explicado nesta seção do guia mas será
+apresentada uma explicação breve sobre o funcionamento de análise de strings do
+<command>iptables.
+
+
+
+
+Os dois tipos de firewalls podem ser usados em conjunto para fornecer uma
+camada dupla de segurança no acesso as suas máquinas/máquinas clientes.
+
+
+
+ fw-iptables-proteger-oque">###O que proteger?
+
+Antes de iniciar a construção do firewall é bom pensar nos seguintes pontos:
+
+<itemizedlist>
+<listitem>
+
+Quais serviços precisa proteger.  Serviços que devem ter acesso garantido a
+usuários externos e quais serão bloqueados a todas/determinadas máquinas.  É
+recomendável bloquear o acesso a todas portas menores que 1024 por executarem
+serviços que rodam com privilégio de usuário <literal>root, e
+autorizar somente o acesso as portas que realmente deseja (configuração
+restritiva nesta faixa de portas).
+
+
+<listitem>
+
+Que tipo de conexões eu posso deixar passar e quais bloquear.  Serviços com
+autenticação em texto plano e potencialmente inseguros como rlogin, telnet,
+ftp, NFS, DNS, LDAP, SMTP RCP, X-Window são serviços que devem ser ter acesso
+garantido somente para máquinas/redes que você confia.  Estes serviços podem
+não ser só usados para tentativa de acesso ao seu sistema, mas também como
+forma de atacar outras pessoas aproveitando-se de problemas de configuração.
+
+
+A configuração do firewall ajuda a prevenir isso, mesmo se um serviço estiver
+mal configurado e tentando enviar seus pacotes para fora, será impedido.  Da
+mesma forma se uma máquina Windows de sua rede for infectada por um trojan não
+haverá pânico: o firewall poderá estar configurado para bloquear qualquer
+tentativa de conexão vinda da internet (cracker) para as máquinas de sua rede.
+
+
+Para cópia de arquivos via rede insegura (como através da Internet), é
+recomendado o uso de serviços que utilizam criptografia para login e
+transferência de arquivos (veja <xref linkend="ssh"/>) ou a configuração de uma
+VPN.
+
+
+<listitem>
+
+Que máquinas terão acesso livre e quais serão restritas.
+
+
+<listitem>
+
+Que serviços deverão ter prioridade no processamento.
+
+
+<listitem>
+
+Que máquinas/redes NUNCA deverão ter acesso a certas/todas máquinas.
+
+
+<listitem>
+
+O volume de tráfego que o servidor manipulará.  Através disso você pode ter que
+balancear o tráfego entre outras máquinas, configurar proteções contra DoS, syn
+flood, etc.
+
+
+<listitem>
+
+O que tem permissão de passar de uma rede para outra (em máquinas que atuam
+como roteadores/gateways de uma rede interna).
+
+
+<listitem>
+
+Etc.
+
+
+
+
+A análise destes pontos pode determinar a complexidade do firewall, custos de
+implementação, prazo de desenvolvimento e tempo de maturidade do código para
+implementação.  Existem muitos outros pontos que podem entrar na questão de
+desenvolvimento de um sistema de firewall, eles dependem do tipo de firewall
+que está desenvolvendo e das políticas de segurança de sua rede.
+
+
+
+ fw-iptables-regras-oque">###O que são regras?
+
+As regras são como comandos passados ao <command>iptables para que
+ele realize uma determinada ação (como bloquear ou deixar passar um pacote) de
+acordo com o endereço/porta de origem/destino, interface de origem/destino,
+etc.  As regras são armazenadas dentro dos chains e processadas na ordem que
+são inseridas.
+
+
+As regras são armazenadas no kernel, o que significa que quando o computador
+for reiniciado tudo o que fez será perdido.  Por este motivo elas deverão ser
+gravadas em um arquivo para serem carregadas a cada inicialização.
+
+
+Um exemplo de regra: <literal>iptables -A INPUT -s 123.123.123.1 -j
+DROP.
+
+
+
+ fw-iptables-chains-oque">###O que são chains?
+
+Os **Chains** são locais onde as regras do firewall definidas
+pelo usuário são armazenadas para operação do firewall.  Existem dois tipos de
+chains: os embutidos (como os chains **INPUT**,
+**OUTPUT** e **FORWARD**) e os criados pelo
+usuário.  Os nomes dos chains embutidos devem ser especificados sempre em
+maiúsculas (note que os nomes dos chains são case-sensitive, ou seja, o chain
+<literal>input é completamente diferente de
+<literal>INPUT).
+
+
+
+ fw-iptables-tabelas">###O que são tabelas?
+
+Tabelas são os locais usados para armazenar os chains e conjunto de regras com
+uma determinada característica em comum.  As tabelas podem ser referenciadas
+com a opção **-t tabela** e existem 3 tabelas disponíveis no
+<command>iptables:
+
+<itemizedlist>
+<listitem>
+
+<literal>filter - Esta é a tabela padrão, contém 3 chains padrões:
+
+<itemizedlist>
+<listitem>
+
+<literal>INPUT - Consultado para dados que chegam a máquina
+
+
+<listitem>
+
+<literal>OUTPUT - Consultado para dados que saem da máquina
+
+
+<listitem>
+
+<literal>FORWARD - Consultado para dados que são redirecionados para
+outra interface de rede ou outra máquina.
+
+
+
+
+Os chains **INPUT** e **OUTPUT** somente são
+atravessados por conexões indo/se originando de localhost.
+
+
+**OBS**: Para conexões locais, somente os chains
+**INPUT** e **OUTPUT** são consultados na
+tabela filter.
+
+
+<listitem>
+
+<literal>nat - Usada para dados que gera outra conexão (masquerading,
+source nat, destination nat, port forwarding, proxy transparente são alguns
+exemplos).  Possui 3 chains padrões:
+
+<itemizedlist>
+<listitem>
+
+<literal>PREROUTING - Consultado quando os pacotes precisam ser
+modificados logo que chegam.  É o chain ideal para realização de DNAT e
+redirecionamento de portas (<xref linkend="fw-iptables-nat-dnat"/>).
+
+
+<listitem>
+
+<literal>OUTPUT - Consultado quando os pacotes gerados localmente
+precisam ser modificados antes de serem roteados.  Este chain somente é
+consultado para conexões que se originam de IPs de interfaces locais.
+
+
+<listitem>
+
+<literal>POSTROUTING - Consultado quando os pacotes precisam ser
+modificados após o tratamento de roteamento.  É o chain ideal para realização
+de SNAT e IP Masquerading (<xref linkend="fw-iptables-nat-snat"/>).
+
+
+
+
+<listitem>
+
+<literal>mangle - Utilizada para alterações especiais de pacotes
+(como modificar o tipo de serviço (TOS) ou outros detalhes que serão explicados
+no decorrer do capítulo.  Possui 2 chains padrões:
+
+<itemizedlist>
+<listitem>
+
+<literal>INPUT - Consultado quando os pacotes precisam ser
+modificados antes de serem enviados para o chain **INPUT** da
+tabela **filter**.
+
+
+<listitem>
+
+<literal>FORWARD - Consultado quando os pacotes precisam ser
+modificados antes de serem enviados para o chain **FORWARD**
+da tabela **filter**.
+
+
+<listitem>
+
+<literal>PREROUTING - Consultado quando os pacotes precisam ser
+modificados antes de ser enviados para o chain **PREROUTING**
+da tabela **nat**.
+
+
+<listitem>
+
+<literal>POSTROUTING - Consultado quando os pacotes precisam ser
+modificados antes de serem enviados para o chain
+**POSTROUTING** da tabela **nat**.
+
+
+<listitem>
+
+<literal>OUTPUT - Consultado quando os pacotes precisam ser
+modificados antes de serem enviados para o chain **OUTPUT** da
+tabela **nat**.
+
+
+
+
+Veja <xref linkend="fw-iptables-mangle"para mais detalhes sobre a tabela
+mangle.
+
+
+
+
+
+ fw-iptables-supkernel">###Habilitando o suporte ao iptables no kernel
+
+Para usar toda a funcionalidade do firewall <command>iptables,
+permitindo fazer o controle do que tem ou não permissão de acessar sua máquina,
+fazer Masquerading/NAT em sua rede, etc., você precisará dos seguintes
+componentes compilados em seu kernel (os módulos experimentais fora ignorados
+intencionalmente):
+
+<screen>
+*
+* Network Options:
+*
+
+Network packet filtering (replaces ipchains) [Y/m/n/?]
+ Network packet filtering debugging [Y/m/n/?]
+
+e na Subseção:
+
+*
+*   IP: Netfilter Configuration
+*
+Connection tracking (required for masq/NAT) (CONFIG_IP_NF_CONNTRACK) [M/n/y/?] 
+  FTP protocol support (CONFIG_IP_NF_FTP) [M/n/?] 
+  IRC protocol support (CONFIG_IP_NF_IRC) [M/n/?]
+IP tables support (required for filtering/masq/NAT) (CONFIG_IP_NF_IPTABLES) [Y/m/n/?]
+  limit match support (CONFIG_IP_NF_MATCH_LIMIT) [Y/m/n/?] 
+  MAC address match support (CONFIG_IP_NF_MATCH_MAC) [M/n/y/?] 
+  netfilter MARK match support (CONFIG_IP_NF_MATCH_MARK) [M/n/y/?] 
+  Multiple port match support (CONFIG_IP_NF_MATCH_MULTIPORT) [M/n/y/?] 
+  TOS match support (CONFIG_IP_NF_MATCH_TOS) [M/n/y/?] 
+  LENGTH match support (CONFIG_IP_NF_MATCH_LENGTH) [M/n/y/?]
+  TTL match support (CONFIG_IP_NF_TTL) [M/n/y/?]
+  tcpmss match support (CONFIG_IP_NF_MATCH_TCPMSS) [M/n/y/?] 
+  Connection state match support (CONFIG_IP_NF_MATCH_STATE) [M/n/?] 
+  Packet filtering (CONFIG_IP_NF_FILTER) [M/n/y/?] 
+    REJECT target support (CONFIG_IP_NF_TARGET_REJECT) [M/n/?] 
+  Full NAT (CONFIG_IP_NF_NAT) [M/n/?] 
+    MASQUERADE target support (CONFIG_IP_NF_TARGET_MASQUERADE) [M/n/?] 
+    REDIRECT target support (CONFIG_IP_NF_TARGET_REDIRECT) [M/n/?] 
+  Packet mangling (CONFIG_IP_NF_MANGLE) [M/n/y/?] 
+    TOS target support (CONFIG_IP_NF_TARGET_TOS) [M/n/?] 
+    MARK target support (CONFIG_IP_NF_TARGET_MARK) [M/n/?] 
+  LOG target support (CONFIG_IP_NF_TARGET_LOG) [M/n/y/?] 
+  TCPMSS target support (CONFIG_IP_NF_TARGET_TCPMSS) [M/n/y/?]
+
+
+Esta configuração permite que você não tenha problemas para iniciar o uso e
+configuração do seu firewall iptables, ela ativa os módulos necessários para
+utilização de todos os recursos do firewall <command>iptables.
+Quando conhecer a função de cada um dos parâmetros acima (durante o decorrer do
+texto), você poderá eliminar muitas das opções desnecessárias para seu estilo
+de firewall ou continuar fazendo uso de todas ;-)
+
+
+**OBS1:** A configuração acima leva em
+consideração que você NÃO executará os códigos antigos de firewall
+<command>ipfwadm e <command>ipchains.  Caso deseje utilizar
+o <command>ipchains ou o <command>ipfwadm, será preciso
+responder com "M" a questão "IP tables support (required for
+filtering/masq/NAT) (CONFIG_IP_NF_IPTABLES)".  Será necessário carregar
+manualmente o módulo correspondente ao firewall que deseja utilizar
+(<literal>modprobe <filename>iptables_filter.o</filename> no caso do
+<command>iptables).
+
+
+Não execute mais de um tipo de firewall ao mesmo tempo!!!
+
+
+**OBS2:** É recomendável ativar o daemon
+<command>kmod para carga automática de módulos, caso contrário será
+necessário compilar todas as partes necessárias embutidas no kernel, carregar
+os módulos necessários manualmente ou pelo <command>iptables (através
+da opção **--modprobe=módulo**).
+
+
+
+ fw-iptables-proxy">###Ligando sua rede interna a Internet
+
+Se a sua intenção (como da maioria dos usuários) é conectar sua rede interna a
+Internet de forma rápida e simples, leia <xref linkend="fw-iptables-nat-fastmasquerade"ou <xref linkend="fw-iptables-nat-snat"/>.  Um exemplo prático de configuração de
+Masquerading deste tipo é encontrado em <xref linkend="fw-iptables-exemplo-snat"/>.
+
+
+Após configurar o masquerading, você só precisará especificar o endereço IP da
+máquina masquerading (servidor) como **Gateway** da rede.  No
+<command>Windows 9x/NT/2000 isto é feito no Painel de
+Controle/Rede/Propriedades de Tcp/IP.  No <command>Linux pode ser
+feito com <literal>route add default gw IP_do_Servidor.
+
+
+
+
+

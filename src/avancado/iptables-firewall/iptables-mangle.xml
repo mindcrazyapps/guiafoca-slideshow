@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+ fw-iptables-mangle">###A tabela mangle
+
+A tabela **mangle** serve para especificar ações especiais
+para o tratamento do tráfego que atravessa os chains.  Nesta tabela existem
+cincos chains: **PREROUTING**,
+**POSTROUTING**, **INPUT**,
+**OUTPUT** e **FORWARD** (veja <xref linkend="fw-iptables-tabelas"para maiores detalhes).
+
+
+Em geral, cada um deste chain é processado antes do chain correspondente na
+tabela **filter** e **nat** para definir
+opções especiais para o tráfego (por exemplo, o chain
+**PREROUTING** da tabela **mangle** é
+processado antes do **PREROUTING** da tabela
+**nat**).  O chain **OUTPUT** da tablea
+**mangle** corresponde ao **OUTPUT** da
+tabela **nat**.  Opções como o **Tipo de Serviço
+(TOS)** é especificado nesta tabela para classificar e aumentar
+consideravelmente a velocidade de tráfego considerados em tempo real.  Mesmo
+após o tráfego ser estabelecido, os chains da tabela mangle continuam ativos
+para garantir que as opções especiais relacionadas com a conexão continuem
+fazendo efeito (veja os exemplos de <xref linkend="fw-iptables-path"/>).
+
+
+ fw-iptables-mangle-TOS">###Especificando o tipo de serviço
+
+O tipo de serviço é um campo existente no cabeçalho de pacotes do protocolo
+ipv4 que tem a função especificar qual é a prioridade daquele pacote.  A
+prioridade é definida usando o algoritmo FIFO do próprio kernel, sendo uma das
+alternativas de controle/priorização de tráfego das mais simples e rápidas.
+
+
+Uma das vantagens da utilização do tipo de serviço é dar prioridade ao tráfego
+de pacotes interativos (como os do ICQ, IRC, servidores de chat), etc.  Com o
+TOS especificado, mesmo que esteja fazendo um download consumindo toda a banda
+de sua interface de rede, o tráfego com prioridade interativa será enviado
+antes, aumentando a eficiência do uso de serviços em sua máquina.
+
+
+Em testes realizados em minha conexão de 56K, o uso de regras TOS aumentou
+bastante o desempenho em tráfego interativo (em torno de 300%), durante o uso
+total da banda da interface ppp em grande consumo de banda.
+
+
+Usamos o alvo TOS (-j TOS) para especificar a modificação do tipo de serviço
+nos pacotes que atravessam as regras do firewall, acompanhada do argumento
+**--set-tos TOS** que define a nova prioridade dos pacotes.
+Os valores aceitos são os seguintes:
+
+<variablelist>
+<varlistentry>
+<term>Espera Mínima
+<listitem>
+
+É especificado através de **Minimize-Delay**,
+**16** ou **0x10**
+
+
+
+<varlistentry>
+<term>Máximo Processamento
+<listitem>
+
+É especificado através de **Maximize-Throughput**,
+**8,** ou **0x08**.
+
+
+
+<varlistentry>
+<term>Máxima Confiança
+<listitem>
+
+É especificado através de **Maximize-Reliability**,
+**4** ou **0x04**.
+
+
+
+<varlistentry>
+<term>Custo mínimo
+<listitem>
+
+Especificado através de **Minimize-Cost**,
+**2** ou **0x02**.
+
+
+
+<varlistentry>
+<term>Prioridade Normal
+<listitem>
+
+Especificado através de **Normal-Service**,
+**0** ou **0x00**.
+
+
+
+</variablelist>
+
+Os pacotes vem por padrão com o valor TOS ajustado como **prioridade
+normal** (bits tos ajustados para 0x00).  O tipo **Mínima
+Espera** é o de maior prioridade, recomendado para tráfego interativo.
+
+
+
+ fw-iptables-mangle-TOS-out">###Especificando o TOS para tráfego de saída
+
+Este é o mais usado, pois prioriza o tráfego que sai da máquina (com destino a
+Internet, por exemplo).  Sua operação é realizada através do chain
+**OUTPUT** ou **POSTROUTING**.
+
+
+Para priorizar todo o tráfego de IRC de nossa rede interna indo para a
+interface ppp0:
+
+<screen>
+iptables -t mangle -A OUTPUT -o ppp0 -p tcp --dport 6666-6668 -j TOS --set-tos 16
+
+
+O bit TOS é ajustado para **Espera mínima** e será enviado
+antes dos pacotes com prioridade normal para fora.  Para priorizar a
+transmissão de dados ftp saindo da rede:
+
+<screen>
+iptables -t mangle -A OUTPUT -o ppp0 -p tcp --dport 20 -j TOS --set-tos 8
+
+
+Para priorizar o tráfego de ICQ da rede:
+
+<screen>
+iptables -t mangle -A OUTPUT -o ppp0 -p tcp --dport 5190 -j TOS --set-tos 16
+
+
+Existem muitas outras otimizações que podem ser feitas, só depende dos
+requerimentos e análise de cada serviço da rede pelo administrador.
+
+
+**OBS:** - Os pacotes que atravessam o alvo TOS
+somente tem os bits tipo do serviço modificados, eles não serão de qualquer
+forma rejeitados.
+
+
+

@@ -1,0 +1,41 @@
+<!-- Converted by db4-upgrade version 1.0 -->
+
+ s-samba-i">###Compartilhamento de impressão no servidor SAMBA
+
+Este capítulo documenta como configurar o seu servidor samba para permitir o
+acesso a compartilhamento de arquivos e impressão no sistema.
+
+ s-samba-i-win-linux">###Configurando o Linux como um servidor de impressão Windows
+
+Será necessário ter o pacote <systemitem role="package">samba</systemitem>
+instalado e adicionar as seguintes linhas no seu arquivo
+<filename>/etc/samba/smb.conf</filename>:
+
+<screen>
+[hp-printer]
+ path = /tmp
+ printer name=HP DeskJet 690C
+ printable = yes
+ print command = lpr -r -h -P %p %s
+ valid users = winuser winuser2
+ create mode = 0700
+
+
+O compartilhamento acima tornará disponível a impressora local "lp" as máquinas
+Windows com o nome "HP DeskJet 690C".  Uma impressora alternativa pode ser
+especificada modificando a opção **-P** da linha de comando do
+<command>lpr.  Note que somente os usuários "winuser" e "winuser2"
+poderão usar esta impressora.  Os arquivos de spool (para gerenciar a fila de
+impressão) serão gravador em <filename>/tmp</filename> (<literal>path =
+/tmp) e o compartilhamento <literal>[hp-printer] será
+mostrado como uma impressora (<literal>printable = yes).
+
+
+Agora será necessário instalar o driver desta impressora no Windows (HP 690C) e
+escolher impressora instalada via rede e seguir os demais passos de
+configuração.
+
+
+
+
+

@@ -1,0 +1,536 @@
+<!-- Converted by db4-upgrade version 1.0 -->
+
+>###Gerenciamento de senhas
+    
+        Esta seção contém explicações sobre o gerenciamento de senhas no SAMBA.
+    
+
+ s-samba-senhas-crypto">###Ativando o suporte a senhas criptografadas
+
+O uso de senhas criptografadas é um requisito quando você deseja configurar o
+SAMBA para ser um servidor PDC ou um cliente de um domínio.  Quando utiliza
+senhas criptografadas, elas trafegam em formato seguro através da rede,
+dificultando a captura por outras pessoas.  Em versões mais recentes do Windows
+(a partir da OSR/2 e NT 4 service pack3) o suporte a senhas criptografadas vem
+habilitado como padrão para login e utilização de serviços da rede.  Não é
+recomendável desativar o uso de senhas criptografadas, mas se mesmo assim for
+necessário veja <xref linkend="s-samba-a-passwords"/>.
+
+
+Quando usamos senhas criptografadas, elas são armazenadas no arquivo
+<filename>/etc/samba/smbpasswd</filename> ao invés do
+<filename>/etc/passwd</filename>, isto permite que possamos controlar as
+permissões de usuários separadamente das do sistema e diferenciar os logins do
+domínio dos logins do sistema (usuários que possuem shell).  Caso tenha um
+servidor que já possua muitas contas de usuários acessando em texto plano,
+recomendo ler <xref linkend="s-samba-senhas-crypto-migrando"para facilitar o
+processo de migração de contas.
+
+
+O utilitário <command>smbpasswd é o programa utilizado para gerenciar
+este arquivo de senhas e também o status de contas de usuários/máquinas do
+domínio.  Siga estes passos para ativar o uso de senhas criptografadas no
+SAMBA:
+
+<orderedlist numeration="arabic">
+<listitem>
+
+Edite o arquivo <filename>/etc/samba/smb.conf</filename> e altere as seguintes
+linhas na seção <literal>[global] para adicionar o suporte a senhas
+criptografadas:
+
+<screen>
+[global]
+encrypt passwords = true
+smb passwd file =/etc/samba/smbpasswd
+
+
+A linha <literal>encrypt passwords = true diz para usar senhas
+criptografadas e que o arquivo <filename>/etc/samba/smbpasswd</filename> contém
+as senhas (<literal>smb passwd file =/etc/samba/smbpasswd).
+
+
+Caso sua máquina seja apenas um cliente de rede (e não um PDC), você pode pular
+para o passo onde o <command>SAMBA é reiniciado (no final dessa
+lista), não é necessária a criação do arquivo de senhas para autenticação pois
+os usuários serão validados no servidor.
+
+
+<listitem>
+
+Execute o comando <literal>mksmbpasswd &lt;/etc/passwd
+&gt;/etc/samba/smbpasswd.  Ele pega toda a base de usuários do
+<filename>/etc/passwd</filename> e gera um arquivo
+<filename>/etc/samba/smbpasswd</filename> contendo as contas destes usuários.
+Por padrão, todas as contas são DESATIVADAS por segurança quando este novo
+arquivo é criado.  O novo arquivo terá o seguinte formato:
+
+<screen>
+gleydson:1020:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:[U          ]:LCT-00000000:Gleydson Mazioli da Silva,,,
+geovani:1004:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:[U          ]:LCT-00000000:Geovani Mazioli da Silva,,,
+
+
+Os campos são separados por ":" e cada campo possui o seguinte significado:
+
+<orderedlist numeration="arabic">
+<listitem>
+
+O primeiro é o nome de usuário
+
+
+<listitem>
+
+UID do usuário no sistema UNIX que a conta será mapeada.
+
+
+<listitem>
+
+Senha Lan Manager codificada em hex 32 criado usando criptografia DES usada
+pelo Windows 95/98/ME.
+
+
+<listitem>
+
+Senha hash criada em formato do NT codificada em hex 32.  Esta senha é criada
+pegando a senha do usuário, convertendo-a para maiúsculas, adicionados 5 bytes
+de caracteres nulos e aplicando o algoritmo md4.
+
+
+<listitem>
+
+Opções da conta criada no <filename>smbpasswd</filename>:
+
+<itemizedlist>
+<listitem>
+
+<literal>U - Especifica que a conta é uma conta de usuário normal
+(veja <xref linkend="s-samba-senhas-crypto-criando"/>)
+
+
+<listitem>
+
+<literal>D - Significa que a conta foi desativada com a opção
+<literal>-d (veja <xref linkend="s-samba-senhas-crypto-desabilitando"/>).
+
+
+<listitem>
+
+<literal>W - Especifica que a conta é uma conta de máquina criada com
+a opção <literal>-m (veja <xref linkend="s-samba-dom-contasmac"/>).
+
+
+<listitem>
+
+<literal>N - A conta não possui senha (veja <xref linkend="s-samba-senhas-crypto-nopasswd"/>).
+
+
+
+
+</orderedlist>
+
+Os caracteres "XXXXXXXXXXXXXXX" no campo da senha, indica que a conta foi recém
+criada, e portanto está desativada.  O próximo passo é ativar a conta para ser
+usada pelo SAMBA.
+
+
+**ATENÇÃO:** O método de criptografia usado
+neste arquivo não é totalmente seguro.  Recomendo manter o arquivo de senhas
+<filename>smbpasswd</filename> em um diretório com a permissão de leitura
+somente pelo <literal>root.
+
+
+<listitem>
+
+Para ativar a conta do usuário <literal>gleydson, usamos o comando:
+
+<screen>
+smbpasswd -U gleydson
+
+
+Digite a senha do usuário e repita para confirmar.  Assim que a senha for
+definida, a conta do usuário é ativada.  Você também pode especificar a opção
+"-s" para entrar com a senha pela entrada padrão (muito útil em scripts).
+Apenas tenha cuidado para que esta senha não seja divulgada em seus
+arquivos/processos.
+
+
+<listitem>
+
+Reinicie o processo do SAMBA (veja <xref linkend="s-samba-rodando"/>).
+
+
+<listitem>
+
+Verifique se o suporte a senhas criptografadas está funcionando com o comando:
+
+<screen>
+ smbclient -L localhost -U gleydson
+
+
+Substitua <literal>localhost pelo IP do servidor e
+<literal>gleydson pelo usuário.  Caso obtenha a mensagem
+<literal>session setup failed: NT_STATUS_LOGON_FAILURE significa que
+a senha informada está incorreta.
+
+
+</orderedlist>
+
+ s-samba-senhas-crypto-migrando">###Migrando de senhas texto plano para criptografadas
+
+No SAMBA, é possível fazer um processo de migração de senhas em texto plano de
+usuários para criptografadas sem que eles deixem de acessar o servidor durante
+esta mudança.  Caso este seja seu caso, insira o parâmetro
+
+<screen>
+update encrypted = yes
+
+
+na seção <literal>[global] do seu arquivo de configuração
+<filename>smb.conf</filename>.  A senha criptografada é definida assim que o
+usuário se logar usando sua senha em texto plano.  Não se esqueça de desativar
+esta opção ou remove-la após o prazo necessário para que todas as senhas sejam
+trocadas.
+
+
+
+ s-samba-senhas-crypto-criando">###Adicionando usuários no <filename>smbpasswd</filename>
+
+A adição de um usuário no <filename>smbpasswd</filename> segue duas etapas:
+primeiro é necessário adiciona-lo no sistema com o <command>adduser e
+depois no samba com o <command>smbpasswd.  Você deve estar se
+perguntando qual a vantagem de se ter um arquivo separado de usuários se ainda
+é preciso criar o login nos dois arquivos; O <command>SAMBA para
+fazer o controle de acesso aos arquivos utiliza além dos mecanismos
+tradicionais do NT, o controle de permissões a nível UNIX para manter os
+arquivos ainda mais restritos.  Além disso, será necessário usuários e grupos
+para criação e acesso ao sistema.
+
+<orderedlist numeration="arabic">
+<listitem>
+
+Adicione um usuário no sistema com o comando:
+
+<screen>
+ useradd -g grupo-dominio -c "Usuário de Domínio" -s /bin/false -d /dev/null joao
+
+
+Este comando adiciona o usuário "joao" no grupo
+<literal>grupo-dominio e não define hem uma shell, diretório home nem
+senha para este usuário.  Isto mantém o sistema mais seguro e não interfere no
+funcionamento do SAMBA, pois somente é necessário para fazer o mapeamento de
+UID/GID de usuários com as permissões do sistema UNIX.
+
+
+É interessante padronizar os usuários criados no domínio para um mesmo grupo
+para pesquisa e outras coisas.
+
+
+<listitem>
+
+Crie o usuário "joao" no SAMBA:
+
+<screen>
+smbpasswd -a joao
+
+
+Será solicitada a senha do usuário.
+
+
+</orderedlist>
+
+
+ s-samba-senhas-crypto-removendo">###Removendo usuários do <filename>smbpasswd</filename>
+
+Utilize o comando <literal>smbpasswd -x usuario para remover um
+usuário do arquivo <filename>smbpasswd</filename>.  Se desejar, você pode
+manter o usuário no <filename>/etc/passwd</filename> ou remove-lo com o
+<command>userdel.
+
+
+**OBS:** Removendo um usuário deste arquivo fará
+que ele não tenha mais acesso ao SAMBA.  Utilize o comando <literal>smbpasswd
+-a teste
+
+
+
+ s-samba-senhas-crypto-desabilitando">###Desabilitando uma conta no <filename>smbpasswd</filename>
+
+Como administrador, pode ser necessário que precise desativar temporariamente
+uma conta de usuário por alguma situação qualquer (má utilização de recursos,
+dúvida se a conta está sendo usada, para que ele ligue reclamando de
+autenticação para ter aquela desejada conversa (hehe), etc.).  Remover uma
+conta e novamente adiciona-la então não é uma situação muito prática.  Utilize
+então o seguinte comando para desativar uma conta de usuário:
+
+<screen>
+smbpasswd -d usuario
+
+
+Quando a conta de usuário é desativada, uma flag "D" é adicionada às opções do
+usuário (junto com as opções "UX").  Veja <xref linkend="s-samba-senhas-crypto-habilitando"para reativar a conta.
+
+
+
+ s-samba-senhas-crypto-habilitando">###Habilitando uma conta no <filename>smbpasswd</filename>
+
+Uma conta desativada com o uso do comando <literal>smbpasswd -d pode
+ser novamente ativada usando:
+
+<screen>
+ smbpasswd -e usuario
+
+
+
+ s-samba-senhas-crypto-chpasswd">###Alterando a senha de um usuário
+
+O utilitário <command>smbpasswd pode ser usado tanto para alterar a
+senha de usuários locais do <command>SAMBA ou de uma conta em um
+servidor remoto (seja <command>SAMBA, <command>NT,
+<command>W2K).  Para alterar a senha de um usuário local, digite:
+
+<screen>
+smbpasswd -U usuario
+
+
+Lhe será pedida a antiga senha, a nova senha e a confirmação.  Caso seja o
+usuário <literal>root, somente a nova senha e a confirmação.  Isto é
+mecanismo de proteção para usuários que esquecem a senha ;-)
+
+
+Para alterar a senha de um usuário remoto, utilize:
+
+<screen>
+smbpasswd -r servidor -U usuario
+
+
+Note que apenas foi adicionada a opção <literal>-r servidor comparado
+com a opção anterior.  A diferença é que a senha antiga do usuário sempre será
+solicitada para troca (pois o root das 2 máquinas pode não ser o mesmo).
+
+
+
+ s-samba-senhas-crypto-nopasswd">###Definindo acesso sem senha para o usuário
+
+Para fazer um usuário acessar sem senha, use o comando:
+
+<screen>
+smbpasswd -n usuario
+
+
+Isto é completamente desencorajado e necessita que a opção <literal>null
+passwords da seção <literal>[global] no arquivo
+<filename>smb.conf</filename> esteja ajustada para **yes**
+(**que NÃO é o padrão**).
+
+
+
+
+
+ s-samba-senhas-plano">###Ativando o suporte a senhas em texto plano
+
+Esta forma de autenticação é enviada por implementações NetBIOS antigas, como a
+encontrada no <command>Lan Manager, <command>Windows for
+Workgroups e <command>Windows 95 OSR1.  As versões mais
+novas destas implementações enviam a senha em formato criptografado, sendo
+necessário também usar o formato criptografado no SAMBA para que possa se
+autenticar (veja <xref linkend="s-samba-senhas-crypto"/>).
+
+
+Em <xref linkend="s-samba-a-passwords"é feita uma comparação entre o uso de
+autenticação usando senhas em texto plano e senhas criptografadas.  Em geral, o
+administrador prefere a utilização da autenticação usando texto plano quando
+deseja usar o <filename>/etc/passwd</filename> para autenticação e está usando
+grupos de trabalho é necessário usar senhas criptografadas para autenticação).
+
+
+Para configurar o <command>SAMBA para utilizar senhas em texto,
+modifique o parâmetro <literal>encrypt passwords para
+<literal>no:
+
+<screen>
+[global]
+encrypt passwords = no
+
+
+Reinicie o <command>SAMBA (<xref linkend="s-samba-rodando"/>) e a
+partir de agora, ele usará o <filename>/etc/passwd</filename> para
+autenticação.
+
+
+**OBS:** Tenha certeza de não estar participando
+de um domínio ou que sua máquina seja o PDC antes de fazer esta modificação.
+
+
+ s-samba-senhas-plano-c">###Configurando o acesso de clientes para uso de senhas em texto plano
+
+Esta seção descreve como configurar clientes para acessar o servidor
+<command>SAMBA usando autenticação em texto plano.  Atualmente o guia
+cobre os seguintes clientes:
+
+<itemizedlist>
+<listitem>
+
+<xref linkend="s-samba-senhas-plano-c-lanmanager"/>
+
+
+<listitem>
+
+<xref linkend="s-samba-senhas-plano-c-wfw"/>
+
+
+<listitem>
+
+<xref linkend="s-samba-senhas-plano-c-win95a"/>
+
+
+<listitem>
+
+<xref linkend="s-samba-senhas-plano-c-win95b"/>
+
+
+<listitem>
+
+<xref linkend="s-samba-senhas-plano-c-win98"/>
+
+
+<listitem>
+
+<xref linkend="s-samba-senhas-plano-c-winME"/>
+
+
+<listitem>
+
+<xref linkend="s-samba-senhas-plano-c-winNT"/>
+
+
+<listitem>
+
+<xref linkend="s-samba-senhas-plano-c-win2000"/>
+
+
+<listitem>
+
+<xref linkend="s-samba-senhas-plano-c-linux"/>
+
+
+
+
+Em cada seção, também é explicado como habilitar novamente a autenticação
+usando senhas criptografadas (se suportado pelo cliente).
+
+
+ s-samba-senhas-plano-c-lanmanager">###Lan Manager
+
+Cliente NetBIOS para DOS.  Ele trabalha somente com senhas em texto plano.
+
+
+
+ s-samba-senhas-plano-c-wfw">###Windows for Workgroups
+
+Este é o padrão de autenticação do <command>Windows for Workgroups
+caso não tenha feito nenhuma alteração específica (mas desconheço algo que
+faça-o trabalhar com senhas criptografadas).
+
+
+
+ s-samba-senhas-plano-c-win95a">###Windows 95 / Windows 95A
+
+O <command>Windows 95 até a release "A", utiliza texto plano como
+padrão para autenticação (veja qual a release clicando com o botão direito em
+**Meu Computador** e **Propriedades**.
+
+
+
+ s-samba-senhas-plano-c-win95b">###Windows 95B
+
+Copie o seguinte conteúdo para um arquivo chamado
+<filename>win95-textoplano.reg</filename>:
+
+<screen>
+REGEDIT4
+
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\VxD\VNETSUP]
+"EnablePlainTextPassword"=dword:00000001
+
+
+Após isto, execute no <command>Windows 95 o seguinte comando:
+<literal>regedit win95-textoplano.reg e reinicie o computador para
+fazer efeito.
+
+
+Para voltar a utilizar criptografia, apenas altere o valor
+<literal>dword para <literal>00000000 no arquivo e executa
+novamente o <command>regedit.
+
+
+
+ s-samba-senhas-plano-c-win98">###Windows 98/98SE
+
+O procedimento é idêntico ao <xref linkend="s-samba-senhas-plano-c-win95b"/>.
+
+
+
+ s-samba-senhas-plano-c-winME">###Windows ME
+
+O procedimento é idêntico ao <xref linkend="s-samba-senhas-plano-c-win95b"/>.
+
+
+
+ s-samba-senhas-plano-c-winNT">###Windows NT Server/WorkStation
+
+Copie o seguinte conteúdo para um arquivo chamado
+<filename>winNT-textoplano.reg</filename>:
+
+<screen>
+REGEDIT4
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Rdr\Parameters]
+"EnablePlainTextPassword"=dword:00000001
+
+
+Após isto, execute no <command>Windows NT o seguinte comando:
+<literal>regedit winNT-textoplano.reg e reinicie o computador para
+fazer efeito.
+
+
+Para voltar a utilizar criptografia, apenas altere o valor
+<literal>dword para <literal>00000000 no arquivo e execute
+novamente o <command>regedit.
+
+
+
+ s-samba-senhas-plano-c-win2000">###Windows 2000
+
+Copie o seguinte conteúdo para um arquivo chamado
+<filename>win2000-textoplano.reg</filename>:
+
+<screen>
+REGEDIT4
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanWorkStation\Parameters]
+"EnablePlainTextPassword"=dword:00000001
+
+
+Após isto, execute no <command>Windows 2000 o seguinte comando:
+<literal>regedit win2000-textoplano.reg e reinicie o computador para
+fazer efeito.
+
+
+Para voltar a utilizar criptografia, apenas altere o valor
+<literal>dword para <literal>00000000 no arquivo e execute
+novamente o <command>regedit.
+
+
+
+ s-samba-senhas-plano-c-linux">###Linux
+
+Inclua/modifique a linha <literal>encrypt passwords = no no arquivo
+<filename>smb.conf</filename> e reinicie o <command>SAMBA.  Para
+voltar a utilizar criptografia, veja <xref linkend="s-samba-senhas-crypto"/>.
+
+
+
+
+
+
+

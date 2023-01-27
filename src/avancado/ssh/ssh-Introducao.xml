@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+ s-ssh-intro">###Introdução
+
+O serviço de <command>ssh permite fazer o acesso remoto ao console de
+sua máquina, em outras palavras, você poderá acessar sua máquina como se
+estivesse conectado localmente ao seu console (substituindo o
+<command>rlogin e <command>rsh).  A principal diferença com
+relação ao serviço <command>telnet padrão, <command>rlogin
+e <command>rsh é que toda a comunicação entre cliente/servidor é
+feita de forma encriptada usando chaves públicas/privadas RSA para criptografia
+garantindo uma transferência segura de dados.
+
+
+A velocidade do console remoto conectado via Internet é excelente (melhor que a
+obtida pelo <command>telnet e serviços r*) dando a impressão de uma
+conexão em tempo real (mesmo em links discados de 9.600 KB/s), a compactação
+dos dados também pode ser ativada para elevar ainda mais a velocidade entre
+cliente-servidor ssh.  Além do serviço de acesso remoto, o
+<command>scp possibilita a transferência/recepção segura de arquivos
+(substituindo o <command>rcp).
+
+
+Em conexões sem criptografia (rsh, rlogin) os dados trafegam de forma
+desprotegida e caso exista algum sniffer instalado em sua rota com a máquina
+destino, todo o que fizer poderá ser capturado (incluindo senhas).
+
+
+ s-ssh-versao">###Versão
+
+É assumido que esteja usando a versão 2.0 do <command>ssh.  As
+explicações contidas aqui podem funcionar para versões posteriores, mas é
+recomendável que leia a documentação sobre modificações no programa (changelog)
+em busca de mudanças que alterem o sentido das explicações fornecidas aqui.
+
+
+
+ s-ssh-historia">###História
+
+O <command>openSSH (explicado neste capítulo) é baseado na última
+versão livre do implementação de Tatu Ylonen com todos os algoritmos
+patenteados (para bibliotecas externas) removidos, todos as falhas de segurança
+corrigidas, novas características e muitas outras melhorias.  O openSSH foi
+criado por Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos, Theo de Raadt
+e Dug Song.
+
+
+
+ s-ssh-contribuindo">###Contribuindo
+
+A Home page principal é ("http://www.w3.org/1999/xlink) [](http://www.unixuser.org/~haruyama/security/openssh/index.html">http://www.unixuser.org/~haruyama/security/openssh/index.html.
+Falhas, correções e sugestões podem ser enviadas para a lista de discussão
+<email>openssh-unix-dev@mindrot.org (aberta a postagens de usuários não
+inscritos).
+
+
+
+ s-ssh-caracteristicas">###Características
+
+Abaixo as principais características do serviço <command>ssh
+(<command>Openssh).
+
+<itemizedlist>
+<listitem>
+
+Conexão de dados criptografada entre cliente/servidor.
+
+
+<listitem>
+
+Cópia de arquivos usando conexão criptografada.
+
+
+<listitem>
+
+Suporte a ftp criptografado (sftp).
+
+
+<listitem>
+
+Suporte a compactação de dados entre cliente/servidor.
+
+
+<listitem>
+
+Controle de acesso das interfaces servidas pelo servidor
+<command>ssh.
+
+
+<listitem>
+
+Suporte a controle de acesso tcp wrappers.
+
+
+<listitem>
+
+Autenticação usando um par de chaves pública/privada RSA ou DSA.
+
+
+<listitem>
+
+Algoritmo de criptografia livre de patentes.
+
+
+<listitem>
+
+Suporte a PAM.
+
+
+<listitem>
+
+Suporte a caracteres ANSI (cores e códigos de escape especiais no console).
+
+
+
+
+
+ s-ssh-ficha">###Ficha técnica
+
+Pacote: <systemitem role="package">ssh</systemitem>
+
+
+Utilitários:
+
+<itemizedlist>
+<listitem>
+
+<literal>ssh - Cliente ssh (console remoto).
+
+
+<listitem>
+
+<literal>slogin - Link simbólico para o programa
+<command>ssh.
+
+
+<listitem>
+
+<literal>sshd - Servidor de shell seguro ssh.
+
+
+<listitem>
+
+<literal>scp - Programa para transferência de arquivos entre
+cliente/servidor
+
+
+<listitem>
+
+<literal>ssh-keygen - Gera chaves de autenticação para o ssh
+
+
+<listitem>
+
+<literal>sftp - Cliente ftp com suporte a comunicação segura.
+
+
+<listitem>
+
+<literal>sftp-server - Servidor ftp com suporte a comunicação segura.
+
+
+<listitem>
+
+<literal>ssh-add - Adiciona chaves de autenticação DSA ou RSA ao
+programa de autenticação.
+
+
+<listitem>
+
+<literal>ssh-agent - Agente de autenticação, sua função é armazenar a
+chave privada para autenticação via chave pública (DSA ou RSA).
+
+
+<listitem>
+
+<literal>ssh-keyscan - Scaneia por chaves públicas de autenticação de
+hosts especificados.  O principal objetivo é ajudar na construção do arquivo
+local <filename>know_hosts</filename>.
+
+
+<listitem>
+
+<literal>ssh-copy-id - Usado para instalação do arquivo
+<filename>identity.pub</filename> em uma máquina remota.
+
+
+
+
+Arquivos de configuração:
+
+<itemizedlist>
+<listitem>
+
+<filename>/etc/ssh/sshd_config</filename> - Arquivo de configuração do servidor
+ssh.
+
+
+<listitem>
+
+<filename>/etc/ssh/ssh_config</filename> - Arquivo de configuração do cliente
+ssh.
+
+
+<listitem>
+
+<filename>~/.ssh/config</filename> - Arquivo de configuração pessoal do cliente
+ssh.
+
+
+
+
+
+ s-ssh-hwreq">###Requerimentos de Hardware
+
+É recomendado no mínimo 6MB de memória RAM para a execução do serviço
+<command>ssh mais o kernel do <command>Linux.  Este limite
+deve ser redimensionado para servidores de acesso dedicado, uma quantidade de
+64MB deve ser confortável para centenas de usuários conectados simultaneamente
+(o que raramente acontece).
+
+
+Veja também <xref linkend="d-restr"para configuração de restrições usando
+PAM.  O <command>ssh que acompanha a distribuição
+<command>Debian vem com o suporte a tcp wrappers compilado por
+padrão.
+
+
+
+ s-ssh-logs">###Arquivos de log criados pelo servidor ssh
+
+Detalhes sobre a execução do servidor <command>sshd (como inicio,
+autenticação e término) são enviadas ao <command>syslog do sistema.
+A **prioridade** e **nível** são definidos no
+arquivo de configuração <filename>/etc/ssh/sshd_config</filename> (veja <xref linkend="s-ssh-server-sshd-config"/>).
+
+
+
+ s-ssh-install">###Instalação do servidor openSSH
+
+<literal>apt-get install ssh.
+
+
+Por padrão o servidor <command>sshd é instalado como daemon, também é
+possível executa-lo via <command>inetd mas isto não é aconselhável
+porque o servidor gera uma chave aleatória de seção toda vez que é iniciado,
+isto podendo levar vários segundos (quando é usada a versão 1 do protocolo ssh,
+veja <xref linkend="s-ssh-server-protodiff"/>).
+
+
+
+ s-ssh-rodando">###Iniciando o servidor/reiniciando/recarregando a configuração
+
+O arquivo que controla o funcionamento do daemon do <command>ssh é
+controlado pelo arquivo <filename>/etc/init.d/ssh</filename>.
+
+
+A execução do <command>ssh através de <command>inetd é
+automática quando é feita uma requisição para a porta **22**.
+
+
+
+ s-ssh-opcoescmd">###Opções de linha de comando
+
+Opções de linha de comando do servidor <command>sshd:
+
+<itemizedlist>
+<listitem>
+
+<literal>-b bits - Especifica o número de bits da chave do servidor
+(768 por padrão).
+
+
+<listitem>
+
+<literal>-d - Modo de depuração - O servidor envia detalhes sobre seu
+funcionamento aos logs do sistema e não é executado em segundo plano.  Ele
+também responderá conexões pelo mesmo processo.  Podem ser usadas no máximo 3
+opções **-d** para aumentar os detalhes de depuração.
+
+
+<listitem>
+
+<literal>-f arquivo_configuração Indica um arquivo de configuração
+alternativo (por padrão é usado <filename>/etc/ssh/sshd_config</filename>).  O
+<command>ssh pode ser configurado através de opções de linha de
+comando mas requer um arquivo de configuração para ser executado.  Opções de
+linha de comando substituem as especificadas no arquivo de configuração.
+
+
+<listitem>
+
+<literal>-g segundos - Especifica o tempo máximo para a digitação de
+senha de acesso.  Após o tempo especificado o servidor encerra a conexão.  O
+valor padrão é 600 segundos e 0 desativa este recurso.
+
+
+<listitem>
+
+<literal>-h arquivo_chave - Diz qual arquivo contém a chave privada
+local.  O padrão é <filename>/etc/ssh/ssh_host_key</filename> e somente o
+usuário <literal>root deve ter permissões de leitura neste arquivo.
+Será necessário especificar esta opção caso o <command>sshd não
+esteja sendo executado como usuário <literal>root.
+
+
+É possível ter múltiplos arquivos de chaves para os protocolos 1 e 2 do ssh.
+
+
+<listitem>
+
+<literal>-i - Indica que o servidor <command>sshd será
+executado pelo <command>inetd.  Isto não é aconselhável porque o
+servidor gerará a chave aleatória de seção toda vez que for iniciado e isto
+pode levar alguns segundos.  Esta opção pode se tornar viável com o uso do
+protocolo 2 ou criando chaves pequenas como 512 bytes (no ssh 1), mas a
+segurança criptográfica também será diminuída.  Veja as diferenças entre os
+dois protocolos em <xref linkend="s-ssh-server-protodiff"/>.
+
+
+<listitem>
+
+<literal>-k segundos - Especifica a freqüência da geração de novas
+chaves do daemon <command>sshd.  O valor padrão é 3600 segundos e 0
+desativa este recurso.
+
+
+**ATENÇÃO:** NÃO desative este recurso!!!  Esta
+opção traz a segurança que uma nova chave gerada de servidor será gerada
+constantemente (esta chave é enviada junto com a chave pública quando o cliente
+conecta e fica residente na memória volátil), assim mesmo que um cracker
+consiga obtê-la interceptando as conexões, será praticamente impossível tentar
+qualquer coisa.  Valores menores tendem a aumentar ainda mais a segurança.
+
+
+<listitem>
+
+<literal>-p porta - Especifica a porta que o daemon
+<command>sshd atenderá as requisições.  Por padrão é usada a porta
+22.
+
+
+<listitem>
+
+<literal>-q - Nenhuma mensagem será enviada ao
+<command>syslog do sistema.
+
+
+<listitem>
+
+<literal>-u tam - Especifica o tamanho do campo de nome do computador
+que será armazenado no arquivo <filename>utmp</filename>.  A opção
+**u0** faz somente endereços IP serem gravados.
+
+
+<listitem>
+
+<literal>-D - Quando usada não faz o <command>sshd iniciar
+em segundo plano.
+
+
+<listitem>
+
+<literal>-V versão_cliente - Assume que o cliente possui a versão ssh
+especificada (1 ou 2) e não faz os testes de identificação de protocolo.
+
+
+<listitem>
+
+<literal>-4 - Força o uso do protocolo IP tradicional (IPv4).
+
+
+<listitem>
+
+<literal>-6 - Força o uso da nova geração do protocolo IP (IPv6).
+
+
+
+
+A maioria das opções são realmente úteis para modificar o comportamento do
+servidor <command>ssh sem mexer em seu arquivo de configuração (para
+fins de testes) ou para executar um servidor <command>ssh pessoal,
+que deverá ter arquivos de configuração específicos.
+
+
+
+
+

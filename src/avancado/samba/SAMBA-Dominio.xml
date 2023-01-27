@@ -1,0 +1,624 @@
+<!-- Converted by db4-upgrade version 1.0 -->
+
+ s-samba-dom">###Configuração em <literal>Domínio
+
+Esta seção descreve todos os passos necessários para configurar um servidor de
+domínio PDC (**Primary Domain Control**) com perfis móveis e
+outros recursos que tornam úteis e seguras a administração de uma rede NetBEUI.
+
+ s-samba-dom-intro">###Uma breve introdução a um Domínio de rede
+
+Um domínio de rede consiste em uma máquina central chamada de PDC, que mantém o
+controle de todas as contas de usuários/grupos e permissões para acesso a rede
+NetBEUI.  O acesso desta forma é centralizado, como vantagem disto você pode
+usar o nível de acesso por usuários nas máquinas, definindo quais usuários ou
+grupos terão acesso de leitura/gravação.
+
+
+É permitido criar scripts de logon, assim comandos programados pelo
+administrador serão executados nas máquinas clientes durante o logon no domínio
+(veja <xref linkend="s-samba-dom-logonscripts"/>).
+
+
+O nome da máquina é protegido contra hijacking através de contas de máquinas
+que fazem parte do domínio (veja <xref linkend="s-samba-dom-contasmac"/>).
+Isto só é possível em clientes <command>Linux, <command>Windows
+NT, <command>Windows 2000 e <command>Windows XP.
+
+
+Você poderá usar perfis móveis, copiando todas as personalizações do seu
+desktop para qualquer máquina na rede que você faça o logon.  Para o
+administrador, ele poderá definir políticas com o <command>Poledit e
+outros programas que serão salvas junto com o perfil do usuário, valendo para
+qualquer máquina que ele se autentique na rede (veja <xref linkend="s-samba-dom-logonscripts"/>).
+
+
+Se você deseja iniciar logo a configuração do seu domínio, siga até <xref linkend="s-samba-dom-config"/>.
+
+
+
+ s-samba-dom-lmbrowser">###Local Master Browser
+
+É a máquina que ganhou a eleição no segmento local de rede (veja <xref linkend="s-samba-s-oslevel"/>).  Logo que é declarada o **local master
+browser**, ela começa a receber via broadcasting a lista de recursos
+compartilhados por cada máquina para montar a lista principal que será
+retornada para outras máquinas do grupo de trabalho ou outras subredes que
+solicite os recursos compartilhados por aquele grupo.
+
+
+Uma nova eleição é feita a cada 36 minutos ou quando a máquina escolhida é
+desligada.
+
+
+
+ s-samba-dom-dmbrowser">###Domain Master Browser
+
+Quando o local master browse é eleito no segmento de rede, uma consulta é feita
+ao servidor WINS para saber quem é o Domain Master Browse da rede para enviar a
+lista de compartilhamentos.  A máquina escolhida como Local Master Browse envia
+pacotes para a porta UDP 138 do Domain Master e este responde pedindo a lista
+de todos os nomes de máquinas que o local master conhece, e também o registra
+como local master para aquele segmento de rede.
+
+
+Caso tenha configurado sua máquina para ser o domain master browser da rede
+(também chamado de **controlador principal de domínio** ou
+PDC), ela tentará se tornar a máquina que terá a lista completa de recursos
+enviados pelos locais master browsers de cada segmento de rede.  Um PDC também
+é o local master browse de seu próprio segmento de rede.
+
+
+É possível ter mais de um domain master browse, desde que cada um controle seu
+próprio domínio, mas não é possível ter 2 domain master browsers em um mesmo
+domínio.  Caso utilize um servidor <literal>WINS em sua rede, o PDC
+fará consultas constantes em sua base de dados para obter a lista de domínios
+registrados.  O domínio é identificado pelo caracter **1b** na
+rede (veja <xref linkend="s-samba-c-workgroup-linux-nmblookup"/>).
+
+
+**OBS:** O Windows NT configurado como PDC
+sempre tenta se tornar o domain master browser em seu grupo de trabalho.  Não
+sendo possível retirar o Windows NT configurado como PDC do domínio (por alguma
+outra razão), a única forma será deixar ele ser o domain master browser.  Se
+este for o caso, você poderá continuar lendo este documento para aprender mais
+sobre NetBIOS e talvez ainda mudar de idéia sobre manter o NT na rede após ver
+as características do SAMBA ;-)
+
+
+
+ s-samba-dom-config">###Configurando um servidor PDC no SAMBA
+
+Esta é a parte interessante do guia, a prática.  Para os administradores que
+conhecem através da experiência própria os problemas e definições do SAMBA,
+grande parte do guia foi apenas uma revisão (por favor, se faltou algo que acha
+interessante, me notifiquem que incluirei na próxima versão e colocarei uma
+nota no lançamento e na página com os devidos créditos :-))
+
+
+Para configurar uma máquina para ser o PDC (**Controladora Principal de
+Domínio** ou **Primary Domain Control**), siga esta
+seqüência:
+
+<itemizedlist>
+<listitem>
+
+Habilite o suporte a senhas criptografadas.  Caso ainda não tenha feito isso,
+leia a seção <xref linkend="s-samba-senhas-crypto"/>.
+
+
+<listitem>
+
+Na seção **[global]**, insira/modifique os seguintes
+parâmetros:
+
+<screen>
+; Identificação da máquina e domínio
+netbios name = gleydson
+workgroup = focalinux
+
+;níveis de acesso e funções do servidor
+security = user
+domain master = yes
+prefered master = yes
+local master = yes
+
+; senhas criptografadas
+encrypt passwords = yes
+smb passwd file = /etc/samba/smbpasswd.db
+
+
+Onde os parâmetros significam:
+
+<itemizedlist>
+<listitem>
+
+<literal>netbios name = gleydson - Nome do computador.  Este também
+será o nome usado pelas outras máquinas clientes quando for configurar o PDC
+(**controlador de domínio**).
+
+
+<listitem>
+
+<literal>workgroup = focalinux - Nome do domínio que está criando.
+Todas as máquinas que pertencerem a este domínio, terão o nível de acesso
+definido pelo PDC.  Note que o parâmetro <literal>workgroup também é
+usado ao especificar o nome do grupo de trabalho quando se é usado a
+configuração **grupo de trabalho** (<xref linkend="s-samba-wrkgrp"/>).
+
+
+<listitem>
+
+<literal>security = user - Requerido para controle de acesso por
+domínio, já que é utilizado o controle de acesso local usando usuários e grupos
+locais.
+
+
+<listitem>
+
+<literal>domain master = yes - Especifica se está máquina está sendo
+configurada para ser o PDC da rede.
+
+
+**OBS:** Por favor, certifique-se que não existe
+outro PDC no domínio.  Veja <xref linkend="s-samba-dom-dmbrowser"/>.
+<literal>prefered master = yes - Força uma eleição com algumas
+vantagens para seu servidor ser eleito sempre como o controlador de domínio.
+Isto garante que a máquina <command>SAMBA sempre seja o PDC.  Veja
+<xref linkend="s-samba-s-global-browsing"/>.  <literal>local master =
+yes - Define se a máquina será o controlador principal do grupo de
+trabalho local que ela pertence.
+
+
+
+
+
+
+Pronto, agora teste se existem erros em sua configuração executando o comando
+<command>testparm (<xref linkend="s-samba-s-testparm"/>) e corrija-os
+se existir.  Resta agora reiniciar o servidor <command>nmbd para que
+todas as suas alterações tenham efeito.  Para adicionar seus clientes a um
+domínio, veja <xref linkend="s-samba-dom-contasmac"e <xref linkend="s-samba-c-dominio"/>.
+
+
+
+ s-samba-dom-contasmac">###Contas de máquinas de domínio
+
+Uma conta de máquina de domínio garante que nenhum outro computador possa
+utilizar o mesmo nome de uma máquina confiável e assim utilizar os
+compartilhamentos que ela tem permissão.  Os clientes <command>Windows
+NT, <command>Windows XP e <command>Windows 2000
+precisam de uma conta de máquina para ter acesso ao domínio e seus recursos.  A
+criação de uma conta de máquina é bastante semelhante a criação da conta de um
+usuário normal no domínio.
+
+
+Existe uma coisa que precisa sempre ter em mente quando estiver configurando
+uma conta de máquina de domínio: Quando você cria uma conta para a máquina, ela
+entra e altera sua senha no próximo logon usando um "segredo" entre ela e o
+PDC, este segredo a identifica sempre como dona daquele nome NetBIOS, ou seja,
+até o primeiro logon no NT, outra máquina com o mesmo nome NetBIOS poderá ser a
+dona do netbios naquele domínio caso faça o logon no domínio.  A única forma de
+se evitar isto é logar imediatamente no domínio NT assim que criar as contas de
+máquinas.
+
+
+Existem duas formas para criação de contas de máquinas: manual e automática.
+
+ s-samba-dom-contasmac-dom-m">###Criando contas de máquinas manualmente
+
+Para criar uma conta de domínio para a máquina <literal>master, siga
+estes 2 passos:
+
+<orderedlist numeration="arabic">
+<listitem>
+
+Crie uma conta de máquina no arquivo <filename>/etc/passwd</filename>:
+
+<screen>
+useradd -g domainmac -c "Maquina de Dominio" -s /bin/false -d /dev/null master$
+
+
+O comando acima cria uma conta para a máquina <literal>master$ e
+torna ela parte do grupo <literal>domainmac.  É necessário
+especificar o caracter <literal>$ após o nome da máquina para criar
+uma conta de máquina no domínio, caso contrário o próximo passo irá falhar.
+Acredito que nas próximas versões do SAMBA seja desnecessário o uso do arquivo
+<filename>/etc/passwd</filename> para a criação de contas de máquina.
+
+
+<listitem>
+
+Crie uma conta de máquina no arquivo <filename>/etc/samba/smbpasswd</filename>:
+
+<screen>
+smbpasswd -m -a master
+
+
+Isto cria uma conta de máquina para o computador <literal>master no
+arquivo <filename>/etc/samba/smbpasswd</filename>.  Note que a criação de uma
+conta de máquina é muito semelhante a criação de um usuário apenas precisa
+adicionar a opção <literal>-m.  Quando for criar uma conta com o
+<command>smbpasswd Não é necessário especificar <literal>$
+no final do nome da máquina.
+
+
+O mais importante: Entre **IMEDIATAMENTE** no
+domínio após criar a conta de máquina usando a conta de administrador de
+domínio criada no SAMBA (veja <xref linkend="s-samba-dom-admin"/>)!  como a
+máquina ainda não se autenticou pela primeira vez, qualquer máquina que tenha o
+mesmo nome e entre no domínio, poderá alocar o nome recém criado.  A única
+forma de resolver este problema, é apagando a conta de máquina e criando-a
+novamente no domínio.  Siga os passos de acordo com o sistema operacional em
+<xref linkend="s-samba-c-dominio"para colocar seus clientes em domínio.
+
+
+</orderedlist>
+
+**OBS1:** Como segurança, recomendo desativar a
+conta de máquina no <filename>/etc/passwd</filename> usando o comando
+<literal>passwd -l conta.  Esta conta NUNCA deverá ser usada para
+login, isto deixa nossa configuração um pouco mais restrita.
+
+
+**OBS2:** A localização do arquivo de senhas
+criptografadas do SAMBA pode ser modificado através da opção <literal>smb
+passwd file na seção <literal>[global] do arquivo
+<filename>smb.conf</filename>.
+
+
+**OBS3:** Os que tem experiência com NT e
+Windows 2000 devem ter notado que este método é semelhante ao do
+**Server Manager** das ferramentas de gerenciamentos de
+servidores existentes no Windows.
+
+
+
+ s-samba-dom-contasmac-dom-a">###Criando contas de máquinas automaticamente
+
+Através deste método, as máquinas clientes terão sua conta criada
+automaticamente assim que seja feita a entrada no domínio usando a conta do
+administrador de domínio no SAMBA.  Este é o método recomendável de colocação
+de máquinas no domínio por ser mais prática ao invés do método manual.  Note
+que normalmente isto funciona para o WinXP e Win2000 mas não funciona em redes
+com o NT4, devendo ser criadas contas de máquinas usando o método manual.
+
+
+Para fazer a configuração automática, coloque a seguinte linha no arquivo
+<filename>smb.conf</filename> na seção <literal>[global]:
+
+<screen>
+add user script = useradd -g domainmac -c "Maquina de Dominio" -s /bin/false -d /dev/null %u
+
+
+Assim, a conta de máquina será automaticamente criada quando o administrador
+fizer sua configuração no domínio (veja <xref linkend="s-samba-dom-admin"/>).
+No SAMBA 3.0, a opção <literal>add machine script deverá ser usada no
+lugar de <literal>add user script para adicionar uma máquina no
+domínio.
+
+
+
+
+
+ s-samba-dom-admin">###Criando uma conta de administrador de domínio
+
+A conta de administrador do domínio é a conta que tem permissões para realizar
+operações de manutenção e administração de máquinas que compõem o domínio de
+rede.  Com ela é possível, entre outras coisas, adicionar e remover máquina que
+compõem o domínio.  Para especificar que contas de usuários do arquivo
+<filename>/etc/samba/smbpasswd</filename> que terão poderes administrativos,
+utilize a opção <literal>domain admin group ou <literal>admin
+users na seção <literal>[global] do arquivo
+<filename>/etc/samba/smb.conf</filename>.
+
+
+O parâmetro <literal>admin users permite que todas as operações
+realizadas pelo usuário sejam feitas com poderes de usuário
+<literal>root.  Isto é necessário porque o arquivo
+<filename>smbpasswd</filename> (usado para ajustar as contas de máquinas)
+normalmente tem permissões de leitura/gravação somente para root.  O
+**domain admin group** permite que usuários específicos ou
+usuários do grupo especificado sejam parte do grupo de administradores do
+domínio para adicionar máquinas, etc.  Por exemplo, para tornar o usuário
+<literal>gleydson com privilégios para adicionar/remover máquinas no
+domínio:
+
+<screen>
+[global]
+...
+admin users = gleydson
+ou
+domain admin group = @admins gleydson
+
+
+Isto permite que o usuário <literal>gleydson possa adicionar/remover
+máquinas do domínio NT (veja <xref linkend="s-samba-c-dominio"/>) entre outras
+tarefas.  Por segurança, recomendo que coloque esta conta no <literal>invalid
+users de cada compartilhamento para que seja utilizada somente para
+fins de gerenciamento de máquinas no domínio, a menos que deseje ter acesso
+total aos compartilhamentos do servidor (nesse caso, tenha consciência do nível
+de acesso que esta conta possui e dos problemas que pode causar caso caia em
+mãos erradas).
+
+
+**OBS1:** Tenha SEMPRE bastante cuidado com quem
+dará poderes de administrador de domínio, pois toda sua rede poderá ficar
+vulnerável caso os cuidados de administração não estejam em boas mãos.
+
+
+**OBS2:** Em versões antigas do SAMBA, somente o
+usuário <literal>root tem poderes para adicionar máquinas no domínio
+usando o parâmetro **domain admins group**, devendo ser também
+adicionado no arquivo <filename>smbpasswd</filename> para que possa fazer isto
+e obviamente não deverá estar listado em <literal>invalid users.
+Mesmo assim, existem outras formas explicadas no guia de se contornar o risco
+causado pela liberação de acesso do usuário <literal>root.
+
+
+
+ s-samba-dom-logonscripts">###Criando Scripts de logon
+
+Uma dos recursos mais úteis em um domínio é a possibilidade de se executar
+comandos nas máquinas cliente quando fazem o logon no domínio.  Desta forma, é
+possível instalar programas, executar anti-vírus, mapear compartilhamentos
+automaticamente no clientes, etc.  A programação de scripts de logon é feita
+usando a linguagem em lote do DOS, com possibilidades de usar variáveis de
+ambiente, cópia de arquivos entre servidores, etc.  O guia não irá abordar a
+programação em linguagem de lote, mas isto é simples de se encontrar na
+internet e mesmo a documentação que acompanha o próprio
+<command>Windows é útil.
+
+
+Para habilitar o recurso de scripts de logon na máquina, adicione os seguintes
+parâmetros no arquivo <filename>smb.conf</filename>:
+
+<screen>
+[global]
+domain logons = yes
+logon script = logon.cmd
+
+[netlogon]
+    path = /pub/samba/netlogon
+    read only = yes
+    write list = ntadmin
+
+
+Segue a descrição de cada parâmetro com detalhes importantes para a
+configuração e funcionamento do recurso de logon:
+
+<itemizedlist>
+<listitem>
+
+<literal>domain logons - Deve ser definido para
+<literal>yes para ativar o recurso de logon scripts do SAMBA.
+
+
+<listitem>
+
+<literal>logon drive é a unidade de disco que terá o homedir do
+usuário mapeado.  Isto somente é usado por máquinas NT/2000/XP.
+
+
+<listitem>
+
+<literal>logon script - Define qual é o script que será executado na
+máquina cliente quando fizer o logon.  Ele deve ser gravado no diretório
+especificado pela opção <literal>path do compartilhamento
+<literal>[netlogon] (<filename>/pub/samba/netlogon</filename> no
+exemplo).  Os scripts de logon podem ser tanto em formato
+<filename>.bat</filename> ou <filename>.cmd</filename>.  Se for programar um
+script universal, é recomendável o uso do formato <filename>.bat</filename> por
+ser compatível tanto com <command>Win9X e <command>WinNT.
+
+
+
+
+Um detalhe que deve ser lembrado durante a programação do script de logon é que
+ele **DEVE** seguir o formato DOS, ou seja, ter
+os caracteres <literal>CR+LF como finalizador de linhas.  Para
+utilizar editores do UNIX para escrever este script, será necessário executar o
+programa <command>flip (<literal>flip -m -b arquivo) ou
+<command>unix2dos no arquivo para converte-lo em formato compatível
+com o DOS.
+
+
+Segue abaixo um exemplo de script de logon que detecta quando o cliente é
+Windows 95/NT, ajusta a hora com o servidor e mapeia 2 unidades de disco:
+
+<screen>
+@echo off
+cls
+rem Logon Script desenvolvido por Gleydson Mazioli 
+rem da Silva como modelo para o guia Foca GNU/Linux
+rem
+rem Este script pode ser utilizado para fins didáticos
+rem e distribuído livremente de acordo com os termos
+rem da GPL 
+rem 
+echo "Aguarde enquanto sua máquina efetua"
+echo "o logon na rede do domínio focalinux."
+rem 
+if %OS%==Windows_NT goto NT-2000
+rem 
+echo "--------------------------------"
+echo "SO: %OS%"
+echo "Usuário: %USERNAME%"
+echo "Grupo de Trabalho: %LANGROUP%"
+echo "Servidor: %DOMINIO%"
+echo "--------------------------------"
+echo "Recuperando compartilhamentos"
+rem mapeia o compartilhamento publico definido no servidor
+net use e: \\gleydson\publico
+echo "Sincronizando data/hora"
+rem sincroniza a data/hora com o servidor
+net time \\gleydson /set /yes
+goto fim
+rem
+rem
+:NT-2000
+echo "--------------------------------"
+echo "SO: %OS%"
+echo "Usuário: %USERNAME%"
+echo "Windows: %windir%"
+echo "Logon de domínio: %LOGONSERVER%"
+echo "--------------------------------"
+echo "Recuperando compartilhamentos"
+net use e: \\gleydson\publico /persistent:yes
+echo "Sincronizando data/hora"
+net time \\gleydson /set /yes
+rem
+rem
+goto fim
+rem
+:fim
+
+
+Note no exemplo acima que não podem haver linhas em branco, você deverá
+utilizar a palavra <replaceable>rem</replaceable> (comentário em arquivos em
+lote) em seu lugar.  Note que existem diferenças entre o comando
+<command>net do Windows 9x/ME e do NT, as variáveis também possuem um
+significado diferente entre estes 2 sistemas, isto explica a necessidade de se
+incluir um bloco separado detectando a existência de qual sistema está sendo
+efetuado o logon.
+
+
+A lista completa de variáveis disponíveis para cada sistema operacional pode
+ser obtida colocando-se <literal>set &gt;c:\vars.txt que gravará uma
+lista de variáveis disponíveis durante o logon no arquivo
+<filename>c:\vars.txt</filename> da máquina cliente.
+
+
+**OBS:** Caso especifique um computador que
+contém o script de login, lembre-se de faze-lo sempre com <literal>\
+ao invés de <literal>/ para não ter incompatibilidade com o
+<command>Windows 95/3.11.
+
+
+**ATENÇÃO:** Lembre-se que copiar e colar pode
+não funcionar para este script.  Leia novamente esta seção do guia se estiver
+em dúvidas.
+
+
+
+ s-samba-dom-profiles">###Configurando perfis de usuários
+
+Os profiles permitem que os clientes utilizem o mesmo perfil em qualquer
+máquina que ele se autentique na rede.  Isto é feito após a autenticação
+copiando os arquivos que contém os dados de personalização de usuários
+(<filename>user.dat</filename>, <filename>NTuser.dat</filename>) para a máquina
+local.  Este processo também inclui a cópia de papéis de parede, links da área
+de trabalho, cache do IE, etc.  Para configurar o recurso de perfis móveis no
+domínio, é necessário adicionar os seguintes parâmetros no seu arquivo
+<filename>smb.conf</filename>:
+
+<screen>
+[global]
+security = user
+encrypt passwords = yes
+domain logons = yes
+logon drive = H:
+logon path = \\%N\profilesNT\%u
+logon home  = \\%N\profiles\%u
+preserve case = yes
+short preserve case = yes
+case sensitive = no
+
+[profiles]
+    path = /pub/profiles
+    read only = no
+    create mask = 0600
+    directory mask = 0700
+
+[profilesNT]
+    path = /pub/profilesNT
+    read only = no
+    create mask = 0600
+    directory mask = 0700
+
+
+Segue a descrição dos parâmetros de detalhes para seu funcionamento:
+
+<itemizedlist>
+<listitem>
+
+O parâmetro <literal>domain logons = yes especifica que o servidor
+será usado para fazer logons no domínio.  Quando este parâmetro é definido para
+<literal>yes, a máquina automaticamente tentará ser o PDC.
+
+
+<listitem>
+
+<literal>logon path e <literal>logon home definem
+(respectivamente) o diretório de logon do
+<filename>/pub/profilesNT/usuario</filename> (<command>NT) e
+<filename>/pub/profiles/usuario</filename> (<command>Win95)
+respectivamente.  Durante o logon, a variável <literal>%N será
+substituída pelo nome do servidor (ou servidor de diretórios, se for o caso) e
+a variável <literal>%u pelo nome do usuário.
+
+
+O sistema operacional de origem é detectado no momento da conexão.  Isto
+significa que o usuário poderá ter 2 profiles diferentes, de acordo com o tipo
+de sistema operacional cliente que estiver conectando.
+
+
+<listitem>
+
+O diretório home do usuário será mapeado para a unidade <literal>H:
+(<literal>logon drive = h:).  O parâmetro <literal>logon
+drive somente é usado pelo NT/2000/XP.
+
+
+<listitem>
+
+As opções <literal>preserve case, <literal>short preserve
+case e <literal>case sensitive permite que os nomes dos
+arquivos/diretórios tenham as letras maiúsculas/minúsculas mantidas, isto é
+requerido para os profiles.
+
+
+
+
+O compartilhamento dos 2 profiles pode ser feito sem tantos traumas, mas isto
+não será explicado profundamente no guia pois o procedimento segue o mesmo
+padrão do NT sendo bastante documentado na internet.
+
+
+Note que é possível definir um servidor separado para servir os profiles para
+um domínio modificando a variável <literal>%N para apontar direto
+para a máquina.  Na máquina que armazenará os profiles, basta definir o nível
+de segurança por <literal>servidor (<literal>security =
+server) e o endereço IP do servidor de senhas (<literal>password
+server = IP).
+
+
+**OBS1:** Os perfis só funcionam caso o servidor
+de profiles contenha a opção <literal>security = user e
+<literal>encrypt passwords = yes ou <literal>security =
+server e <literal>password server = endereço_IP.  Caso
+tenha problemas, verifique se uma destas alternativas está correta.
+
+
+**OBS2:** Quando utiliza o SAMBA com o Windows
+2000 SP2, é necessário adicionar a opção <literal>nt acl support = no
+no compartilhamento <literal>[profiles], caso contrário, ele
+retornará um erro de acesso ao compartilhamento.
+
+
+
+ s-samba-dom-perm-clientes">###Modificações de permissões de acesso pelos clientes do domínio
+
+Um usuário do Windows NT (ou versões baseadas neste) pode modificar as
+permissões dos arquivos/diretórios que tem acesso através da caixa de diálogo
+de listas de acesso do NT, lembrando que estas permissões nunca substituirão as
+definidas pelo administrador local.
+
+
+A opção "nt acl support" deverá estar definida para "yes" na seção
+<literal>[global] do arquivo de configuração, caso contrário você não
+terá acesso para mudar as permissões através de caixas de diálogo do NT.  \
+
+
+
+
+

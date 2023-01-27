@@ -1,0 +1,71 @@
+<!-- Converted by db4-upgrade version 1.0 -->
+
+ s-samba-s-timeserver">###Servidor de data/hora
+
+O samba pode atuar como um servidor de data/hora ajustando o horário de suas
+estações de trabalho com o servidor da rede.
+
+
+As estações clientes poderão executar o comando <command>net para
+sincronizar seu relógio durante a inicialização do Windows, ou durante o logon
+da rede através do script de logon, caso tenha configurado o servidor
+<command>samba para logon em domínios NT.
+
+ s-samba-s-timeserver-s">###Configuração do serviço de data/hora no SAMBA
+
+Para configurar o samba para atuar como servidor de data/hora de sua rede,
+adicione o seguinte parâmetro na seção global do arquivo de configuração
+<filename>/etc/samba/smb.conf</filename>:
+
+<screen>
+[global]
+time server = yes
+
+
+Para sincronizar a data/hora das estações de trabalho usando o servidor samba,
+veja <xref linkend="s-samba-s-timeserver-c"/>.  Caso o seu servidor SAMBA
+também seja o servidor de autenticação PDC da rede, a melhor forma de se fazer
+isto é colocar o comando <literal>net time \\servidor_SAMBA /set /yes
+em um script que será executado pela estação.
+
+
+**OBS** É recomendável instalar um cliente ntp
+para manter o relógio do servidor sempre atualizado, conseqüentemente mantendo
+a data/hora das estações também em sincronismo .  .
+
+
+
+ s-samba-s-timeserver-c">###Sincronizando a data/hora no Cliente
+
+Na estação cliente Windows, use o seguinte comando:
+
+<screen>
+NET TIME \\SERVIDOR /WORKGROUP:GRUPO /SET /YES
+
+
+Um local interessante para colocação deste comando é na pasta Iniciar da
+estação Windows, pois todos os comandos que estejam nesta pasta são executados
+quando o sistema é iniciado.
+
+
+Exemplos:
+
+<itemizedlist>
+<listitem>
+
+<literal>net time \\linux /set /yes - Sincroniza a hora com o
+servidor "\\linux" e não pede confirmação (/yes).
+
+
+<listitem>
+
+<literal>net time \\linux /WORKGROUP:pinguim /set /yes - Sincroniza a
+hora com o servidor "\\linux" do grupo de trabalho pinguim (/WORKGROUP:pinguim)
+e não pede confirmação (/yes).
+
+
+
+
+
+
+

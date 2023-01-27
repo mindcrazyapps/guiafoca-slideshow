@@ -1,0 +1,31 @@
+<!--- <?xml version="1.0" encoding="utf-8" ?> --->
+
+<!--
+<!--- <!ENTITY --->fw-iptables1 SYSTEM "iptables-Introducao.md">
+<!--- <!ENTITY --->fw-iptables2 SYSTEM "iptables-chains.md">
+<!--- <!ENTITY --->fw-iptables3 SYSTEM "iptables-outras-opcoes.md">
+<!--- <!ENTITY --->fw-iptables4 SYSTEM "iptables-nat.md">
+<!--- <!ENTITY --->fw-iptables5 SYSTEM "iptables-mangle.md">
+<!--- <!ENTITY --->fw-iptables6 SYSTEM "iptables-matches.md">
+<!--- <!ENTITY --->fw-iptables7 SYSTEM "iptables-path.md">
+<!--- <!ENTITY --->fw-iptables8 SYSTEM "iptables-exemplo.md">
+-->
+chapter  userlevel='avanc'<!---  [docbook](http://docbook.org/ns/docbook)" ---> version="5.0" fw-iptables">###Firewall iptables
+    
+    Este capítulo documenta o funcionamento do firewall <command>iptables
+    que acompanha a série do kernel 2.4, opções usadas, e aponta alguns pontos
+    fundamentais para iniciar a configuração e construção de bons sistemas de
+    firewall.
+    
+    
+ http://www.w3.org/2001/XInclude" href="iptables-Introducao.md" 
+ http://www.w3.org/2001/XInclude" href="iptables-chains.md" 
+ http://www.w3.org/2001/XInclude" href="iptables-outras-opcoes.md" 
+ http://www.w3.org/2001/XInclude" href="iptables-nat.md" 
+ http://www.w3.org/2001/XInclude" href="iptables-mangle.md" 
+ http://www.w3.org/2001/XInclude" href="iptables-matches.md" 
+ http://www.w3.org/2001/XInclude" href="iptables-path.md" 
+ http://www.w3.org/2001/XInclude" href="iptables-exemplo.md" 
+
+
+

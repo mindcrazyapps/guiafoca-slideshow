@@ -1,0 +1,46 @@
+<!--- <?xml version="1.0" encoding="utf-8" ?> --->
+<!-- 
+<!--- <!ENTITY --->s-samba1 SYSTEM "SAMBA-Introducao.md">
+<!--- <!ENTITY --->s-samba2 SYSTEM "SAMBA-Servidor.md">
+<!--- <!ENTITY --->s-samba3 SYSTEM "SAMBA-Arquivo.md">
+<!--- <!ENTITY --->s-samba4 SYSTEM "SAMBA-Workgroup.md">
+<!--- <!ENTITY --->s-samba5 SYSTEM "SAMBA-NameResolv.md">
+<!--- <!ENTITY --->s-samba6 SYSTEM "SAMBA-Timeserver.md">
+<!--- <!ENTITY --->s-samba7 SYSTEM "SAMBA-Dominio.md">
+<!--- <!ENTITY --->s-samba8 SYSTEM "SAMBA-senhas.md">
+<!--- <!ENTITY --->s-samba9 SYSTEM "SAMBA-uidmap.md">
+<!--- <!ENTITY --->s-samba10 SYSTEM "SAMBA-impressao.md">
+<!--- <!ENTITY --->s-samba11 SYSTEM "SAMBA-acesso.md">
+<!--- <!ENTITY --->s-samba12 SYSTEM "SAMBA-Cliente.md">
+<!--- <!ENTITY --->s-samba13 SYSTEM "SAMBA-exemplo.md">
+-->
+chapter  userlevel='avanc'<!---  [docbook](http://docbook.org/ns/docbook)" ---> version="5.0" s-samba">###SAMBA
+    
+    Este capítulo descreve a configuração, utilização, aplicação, integração de
+    redes <command>Windows e <command>Linux através do
+    <command>SAMBA.  Entre as explicações de cada opção, são passados
+    detalhes importantes relacionados com seu funcionamento, performance e impactos
+    de segurança sobre o servidor como um todo.
+    
+    
+    Uma seção foi especialmente separada para os mais paranóicos (como eu)
+    conhecerem, combinar e aplicar as restrições de forma mais adequada a
+    configuração da máquina.
+    
+
+ http://www.w3.org/2001/XInclude" href="SAMBA-Introducao.md" 
+ http://www.w3.org/2001/XInclude" href="SAMBA-Servidor.md" 
+ http://www.w3.org/2001/XInclude" href="SAMBA-Arquivo.md" 
+ http://www.w3.org/2001/XInclude" href="SAMBA-Workgroup.md" 
+ http://www.w3.org/2001/XInclude" href="SAMBA-NameResolv.md" 
+ http://www.w3.org/2001/XInclude" href="SAMBA-Timeserver.md" 
+ http://www.w3.org/2001/XInclude" href="SAMBA-Dominio.md" />
+ http://www.w3.org/2001/XInclude" href="SAMBA-senhas.md" />
+ http://www.w3.org/2001/XInclude" href="SAMBA-uidmap.md" 
+ http://www.w3.org/2001/XInclude" href="SAMBA-impressao.md" 
+ http://www.w3.org/2001/XInclude" href="SAMBA-acesso.md" />
+ http://www.w3.org/2001/XInclude" href="SAMBA-Tuning.md" />
+ http://www.w3.org/2001/XInclude" href="SAMBA-Cliente.md" 
+ http://www.w3.org/2001/XInclude" href="SAMBA-exemplo.md" 
+
+    
