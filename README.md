@@ -1,1 +1,0 @@
-# guiafoca-slideshow
